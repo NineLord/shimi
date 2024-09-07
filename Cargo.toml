@@ -1,6 +1,13 @@
 [package]
 name = "shimi"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
+authors = ["Shaked F."]
 
 [dependencies]
+clap = { version = "4.5.17", features = ["derive", "cargo", "env"] } # Handles parsing input from command line
+
+# [build-dependencies]
+# clap = { version = "4.5.17", features = ["derive", "cargo"] } # Handles parsing input from command line
+# clap_complete = { version = "4.5.26" } # Generates the shell completion to clap commands
+
