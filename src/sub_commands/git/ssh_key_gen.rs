@@ -6,6 +6,7 @@ use super::command;
 
 /// Generate SSH key.
 #[derive(Args, Debug)]
+#[command(visible_aliases = ["keygen", "ssh-keygen"])]
 #[command(long_about = "Generate SSH key.
 Useful for first time setup ssh connection with your git account.
 Which will allow you to `git clone`/etc.")]
