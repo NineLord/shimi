@@ -6,6 +6,7 @@ authors = ["Shaked F."]
 
 [dependencies]
 clap = { version = "4.5.17", features = ["derive", "cargo", "env"] } # Handles parsing input from command line
+email_address = "0.2.9" # Validates email address
 
 # [build-dependencies]
 # clap = { version = "4.5.17", features = ["derive", "cargo"] } # Handles parsing input from command line
