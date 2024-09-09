@@ -33,9 +33,11 @@ impl Run for Arguments {
 			.arg("-C").arg(self.email);
 		if global_options.is_debug {
 			println!("Debug Mode: {command:?}");
-			Ok(())
-		} else {
-			Err(Box::new(command.exec()))
+			return Ok(());
 		}
+		
+		let error: Result<(), Box<dyn Error>> = Err(Box::new(command.exec()));
+		eprintln!("The command fail: {command:?}");
+		error
 	}
 }

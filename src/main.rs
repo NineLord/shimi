@@ -18,10 +18,12 @@ use std::error::Error;
 use clap::Parser;
 use parser::TopCommand;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
 	let mut commands = TopCommand::parse();
 	if commands.is_debug {
 		println!("Input:\n{commands:#?}");
 	}
-	commands.run()
+	if let Err(error) = commands.run() {
+		eprintln!("{error}")
+	}
 }
