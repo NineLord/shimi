@@ -1,7 +1,6 @@
 use std::{os::unix::process::CommandExt, process::Command, error::Error};
 use clap::Args;
-use email_address::EmailAddress;
-use crate::{Run, GlobalOptions};
+use crate::{Run, GlobalOptions, utils::is_valid_email};
 
 use super::command;
 
@@ -14,14 +13,6 @@ pub struct Arguments {
 	/// The email of your git account.
 	#[arg(value_parser = is_valid_email)]
 	pub email: String
-}
-
-fn is_valid_email(input: &str) -> Result<String, String> {
-	if EmailAddress::is_valid(input) {
-		Ok(input.to_owned())
-	} else {
-		Err(format!("Invalid e-mail address"))
-	}
 }
 
 impl Run for Arguments {
