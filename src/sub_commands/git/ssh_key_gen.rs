@@ -18,7 +18,7 @@ pub struct Arguments {
 
 impl Run for Arguments {
 	#[inline]
-	fn run(self, global_options: GlobalOptions) -> Result<(), Box<dyn Error>> {
+	fn try_run(self, global_options: GlobalOptions) -> Result<(), Box<dyn Error>> {
 		let mut command = Command::new("ssh-keygen");
 		command
 			.arg("-t").arg("ed25519")

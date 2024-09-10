@@ -28,19 +28,13 @@ pub struct GlobalOptions {
 impl TopCommand {
 	#[inline]
 	#[must_use]
-	fn into_split(self) -> (GlobalOptions, SubCommands) {
+	pub fn into_split(self) -> (GlobalOptions, SubCommands) {
 		(
 			GlobalOptions {
 				is_debug: self.is_debug
 			},
 			self.command
 		)
-	}
-
-	#[inline]
-	pub fn run(self) -> Result<(), Box<dyn Error>> {
-		let (global_options, command) = self.into_split();
-		command.run(global_options)
 	}
 }
 
@@ -51,9 +45,9 @@ pub enum SubCommands {
 
 impl Run for SubCommands {
 	#[inline]
-	fn run(self, global_options: GlobalOptions) -> Result<(), Box<dyn Error>> {
+	fn try_run(self, global_options: GlobalOptions) -> Result<(), Box<dyn Error>> {
 		match self {
-			SubCommands::Git(command) => command.run(global_options),
+			SubCommands::Git(command) => command.try_run(global_options),
 		}
 	}
 }

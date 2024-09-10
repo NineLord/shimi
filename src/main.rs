@@ -11,9 +11,17 @@ pub mod sub_commands {
 	}
 }
 pub use parser::GlobalOptions;
-pub trait Run {
+pub trait Run : Sized {
 	#[inline]
-	fn run(self, global_options: GlobalOptions) -> Result<(), Box<dyn std::error::Error>>;
+	fn try_run(self, global_options: GlobalOptions) -> Result<(), Box<dyn std::error::Error>> {
+		self.run(global_options);
+		Ok(())
+	}
+
+	#[inline]
+	fn run(self, global_options: GlobalOptions) {
+		unimplemented!("Either overwrite this method or the `try_run` one")
+	}
 }
 
 use std::error::Error;
@@ -25,7 +33,8 @@ fn main() {
 	if commands.is_debug {
 		println!("Input:\n{commands:#?}");
 	}
-	if let Err(error) = commands.run() {
+	let (global_options, command) = commands.into_split();
+	if let Err(error) = command.try_run(global_options) {
 		eprintln!("{error}")
 	}
 }
