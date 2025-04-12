@@ -13,16 +13,16 @@ It contains commands that are too incontinent to type every time,
 or just hard to remember.")]
 #[command(version)]
 pub struct TopCommand {
-	/// Prints verbosely about what's going on.
-	#[arg(short = 'd', long = "debug", global = true, action = SetTrue)]
-	pub is_debug: bool,
+	/// Prints extra information about what happens at run time.
+	#[arg(short = 'v', long = "verbose", global = true, action = SetTrue)]
+	pub is_verbose: bool,
 
 	#[command(subcommand)]
 	pub command: SubCommands,
 }
 
 pub struct GlobalOptions {
-	pub is_debug: bool
+	pub is_verbose: bool
 }
 
 impl TopCommand {
@@ -31,7 +31,7 @@ impl TopCommand {
 	pub fn into_split(self) -> (GlobalOptions, SubCommands) {
 		(
 			GlobalOptions {
-				is_debug: self.is_debug
+				is_verbose: self.is_verbose
 			},
 			self.command
 		)

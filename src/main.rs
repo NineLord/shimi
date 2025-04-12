@@ -8,6 +8,7 @@ pub mod sub_commands {
 		pub use command::Command;
 		pub(super) mod ssh_key_gen;
 		pub(super) mod global_user_email;
+		pub(super) mod global_ignore;
 	}
 }
 pub use parser::GlobalOptions;
@@ -30,11 +31,11 @@ use parser::TopCommand;
 
 fn main() {
 	let mut commands = TopCommand::parse();
-	if commands.is_debug {
+	if commands.is_verbose {
 		println!("Input:\n{commands:#?}");
 	}
 	let (global_options, command) = commands.into_split();
 	if let Err(error) = command.try_run(global_options) {
-		eprintln!("{error}")
+		eprintln!("{error}");
 	}
 }

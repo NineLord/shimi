@@ -30,7 +30,7 @@ impl Run for Arguments {
 			.arg("config")
 			.arg("--global").arg("user.email").arg(self.email);
 
-		if global_options.is_debug {
+		if global_options.is_verbose {
 			println!("Debug Mode: {set_user_name:?}");
 			println!("Debug Mode: {set_email:?}");
 			return Ok(());

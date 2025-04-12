@@ -23,7 +23,7 @@ impl Run for Arguments {
 		command
 			.arg("-t").arg("ed25519")
 			.arg("-C").arg(self.email);
-		if global_options.is_debug {
+		if global_options.is_verbose {
 			println!("Debug Mode: {command:?}");
 			return Ok(());
 		}
