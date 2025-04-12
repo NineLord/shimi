@@ -12,9 +12,12 @@ pub mod sub_commands {
 	}
 }
 pub use parser::GlobalOptions;
+
+use anyhow::Result;
+
 pub trait Run : Sized {
 	#[inline]
-	fn try_run(self, global_options: GlobalOptions) -> Result<(), Box<dyn std::error::Error>> {
+	fn try_run(self, global_options: GlobalOptions) -> Result<()> {
 		self.run(global_options);
 		Ok(())
 	}

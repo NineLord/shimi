@@ -1,7 +1,6 @@
-use std::error::Error;
+use anyhow::Result;
 use clap::{Parser, Args, Subcommand, ArgAction::SetTrue};
 use crate::Run;
-
 use super::sub_commands;
 
 /// Common shortcuts for developers.
@@ -45,7 +44,7 @@ pub enum SubCommands {
 
 impl Run for SubCommands {
 	#[inline]
-	fn try_run(self, global_options: GlobalOptions) -> Result<(), Box<dyn Error>> {
+	fn try_run(self, global_options: GlobalOptions) -> Result<()> {
 		match self {
 			SubCommands::Git(command) => command.try_run(global_options),
 		}

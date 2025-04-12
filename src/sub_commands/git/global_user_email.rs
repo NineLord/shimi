@@ -1,4 +1,5 @@
-use std::{os::unix::process::CommandExt, process::Command, error::Error};
+use std::{os::unix::process::CommandExt, process::Command};
+use anyhow::{anyhow, Result};
 use clap::Args;
 use crate::{Run, GlobalOptions, utils::is_valid_email};
 
@@ -20,7 +21,7 @@ pub struct Arguments {
 
 impl Run for Arguments {
 	#[inline]
-	fn try_run(self, global_options: GlobalOptions) -> Result<(), Box<dyn Error>> {
+	fn try_run(self, global_options: GlobalOptions) -> Result<()> {
 		let mut set_user_name = Command::new("git");
 		set_user_name
 			.arg("config")
@@ -38,12 +39,12 @@ impl Run for Arguments {
 
 		if let Err(error) = set_user_name.output() {
 			eprintln!("The command fail: {set_user_name:?}");
-			return Err(Box::new(error));
+			return Err(anyhow!(error));
 		}
 
 		if let Err(error) = set_email.output() {
 			eprintln!("The command fail: {set_email:?}");
-			return Err(Box::new(error));
+			return Err(anyhow!(error));
 		}
 		
 		Ok(())

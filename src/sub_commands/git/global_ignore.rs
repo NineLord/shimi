@@ -1,4 +1,12 @@
-use std::{error::Error, ffi::OsString, fs, io::Write, os::unix::process::CommandExt, path::{Path, PathBuf}, process::Command};
+use std::{
+	ffi::OsString,
+	fs,
+	io::Write,
+	os::unix::process::CommandExt,
+	path::{Path, PathBuf},
+	process::Command
+};
+use anyhow::{anyhow, Result};
 use clap::Args;
 use tap::Tap;
 use crate::{Run, GlobalOptions, utils::default_value_home_dir};
@@ -33,7 +41,7 @@ pub struct Arguments {
 
 impl Run for Arguments {
 	#[inline]
-	fn try_run(self, global_options: GlobalOptions) -> Result<(), Box<dyn Error>> {
+	fn try_run(self, global_options: GlobalOptions) -> Result<()> {
 		let Self { mut path, file_name, directories } = self;
 		fs::create_dir_all(&path)?;
 		path.push(file_name);
@@ -72,9 +80,11 @@ impl Run for Arguments {
 			println!("Running Command: {set_excludes_file:?}");
 		}
 
+		
+		set_excludes_file.output()?;
 		if let Err(error) = set_excludes_file.output() {
 			eprintln!("The command fail: {set_excludes_file:?}");
-			return Err(Box::new(error));
+			return Err(anyhow!(error));
 		}
 		
 		Ok(())

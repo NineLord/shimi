@@ -1,4 +1,5 @@
-use std::{os::unix::process::CommandExt, process::Command, error::Error};
+use std::{os::unix::process::CommandExt, process::Command};
+use anyhow::{anyhow, Result};
 use clap::Args;
 use crate::{Run, GlobalOptions, utils::is_valid_email};
 
@@ -18,7 +19,7 @@ pub struct Arguments {
 
 impl Run for Arguments {
 	#[inline]
-	fn try_run(self, global_options: GlobalOptions) -> Result<(), Box<dyn Error>> {
+	fn try_run(self, global_options: GlobalOptions) -> Result<()> {
 		let mut command = Command::new("ssh-keygen");
 		command
 			.arg("-t").arg("ed25519")
@@ -27,8 +28,8 @@ impl Run for Arguments {
 			println!("Debug Mode: {command:?}");
 			return Ok(());
 		}
-		
-		let error: Result<(), Box<dyn Error>> = Err(Box::new(command.exec()));
+
+		let error: Result<()> = Err(anyhow!(command.exec()));
 		eprintln!("The command fail: {command:?}");
 		error
 	}

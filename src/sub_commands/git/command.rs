@@ -1,4 +1,4 @@
-use std::error::Error;
+use anyhow::Result;
 use clap::{Args, Subcommand};
 use crate::{Run, GlobalOptions};
 use super::{global_ignore, global_user_email, ssh_key_gen};
@@ -20,7 +20,7 @@ pub enum CommandInner {
 
 impl Run for Command {
 	#[inline]
-	fn try_run(self, global_options: GlobalOptions) -> Result<(), Box<dyn Error>> {
+	fn try_run(self, global_options: GlobalOptions) -> Result<()> {
 		match self.command {
 			CommandInner::GlobalIgnore(command) => command.try_run(global_options),
 			CommandInner::GlobalUserEmail(command) => command.try_run(global_options),
