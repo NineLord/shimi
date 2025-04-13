@@ -1,4 +1,4 @@
-use std::{ffi::{OsStr, OsString}, path::PathBuf, process::{Command, Output}};
+use std::{ffi::{OsStr, OsString}, path::PathBuf, process::{Command, ExitStatus, Output}};
 use anyhow::{anyhow, Context, Result};
 use log::debug;
 use email_address::EmailAddress;
@@ -59,10 +59,14 @@ impl RunCommand {
 			command.args(arguments);
 		}
 
-		debug!("Running Command: {command:?}\nidk\nwhat is going ong"); // Shaked-TODO: receive global options via global variable and check for debug mode
+		debug!("Running Command: {command:?}");
 
-		command
-			.output()
-			.context("Failed to run the given command")
+		if cfg!(feature = "dry_run") {
+			Ok(Output { status: ExitStatus::default(), stdout: vec![], stderr: vec![] })
+		} else {
+			command
+				.output()
+				.context("Failed to run the given command")
+		}
 	}
 }
