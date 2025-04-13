@@ -44,9 +44,9 @@ pub enum SubCommands {
 
 impl Run for SubCommands {
 	#[inline]
-	fn try_run(self, global_options: GlobalOptions) -> Result<()> {
+	fn run(self, global_options: GlobalOptions) -> Result<()> {
 		match self {
-			SubCommands::Git(command) => command.try_run(global_options),
+			Self::Git(command) => command.run(global_options),
 		}
 	}
 }

@@ -1,5 +1,5 @@
-use std::{os::unix::process::CommandExt, process::Command};
-use anyhow::{anyhow, Result};
+use std::{os::unix::process::CommandExt, process::{Command, Output}};
+use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use crate::{Run, GlobalOptions, utils::is_valid_email};
 
@@ -19,7 +19,7 @@ pub struct Arguments {
 
 impl Run for Arguments {
 	#[inline]
-	fn try_run(self, global_options: GlobalOptions) -> Result<()> {
+	fn run(self, global_options: GlobalOptions) -> Result<()> {
 		let mut command = Command::new("ssh-keygen");
 		command
 			.arg("-t").arg("ed25519")

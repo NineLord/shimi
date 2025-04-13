@@ -20,11 +20,11 @@ pub enum CommandInner {
 
 impl Run for Command {
 	#[inline]
-	fn try_run(self, global_options: GlobalOptions) -> Result<()> {
+	fn run(self, global_options: GlobalOptions) -> Result<()> {
 		match self.command {
-			CommandInner::GlobalIgnore(command) => command.try_run(global_options),
-			CommandInner::GlobalUserEmail(command) => command.try_run(global_options),
-			CommandInner::SshKeyGenerator(command) => command.try_run(global_options),
+			CommandInner::GlobalIgnore(command) => command.run(global_options),
+			CommandInner::GlobalUserEmail(command) => command.run(global_options),
+			CommandInner::SshKeyGenerator(command) => command.run(global_options),
 		}
 	}
 }

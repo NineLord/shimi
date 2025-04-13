@@ -21,7 +21,7 @@ pub struct Arguments {
 
 impl Run for Arguments {
 	#[inline]
-	fn try_run(self, global_options: GlobalOptions) -> Result<()> {
+	fn run(self, global_options: GlobalOptions) -> Result<()> {
 		let mut set_user_name = Command::new("git");
 		set_user_name
 			.arg("config")

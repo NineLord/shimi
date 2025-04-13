@@ -15,10 +15,12 @@ use super::command;
 
 const DEFAULT_FILE_NAME: &str = ".gitignore";
 
-fn default_path() -> OsString {
-	default_value_home_dir()
-		.tap_mut(|path| path.push(DEFAULT_FILE_NAME))
-		.into_os_string()
+fn default_path() -> Result<OsString> {
+	Ok(
+		default_value_home_dir()?
+			.tap_mut(|path| path.push(DEFAULT_FILE_NAME))
+			.into_os_string()
+	)
 }
 
 /// Sets and create a global '.gitignore' file.
@@ -28,7 +30,7 @@ Won't delete the previous file, just redirect to the new one.
 Optionally, appends paths to the file.")]
 pub struct Arguments {
 	/// Path to the '.gitignore' file.
-	#[arg(short, long, default_value = default_value_home_dir().into_os_string())]
+	#[arg(short, long, default_value = default_path().unwrap())]
 	pub path: PathBuf,
 
 	/// The name of the '.gitignore' file.
@@ -41,7 +43,7 @@ pub struct Arguments {
 
 impl Run for Arguments {
 	#[inline]
-	fn try_run(self, global_options: GlobalOptions) -> Result<()> {
+	fn run(self, global_options: GlobalOptions) -> Result<()> {
 		let Self { mut path, file_name, directories } = self;
 		fs::create_dir_all(&path)?;
 		path.push(file_name);
