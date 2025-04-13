@@ -12,8 +12,14 @@ It contains commands that are too incontinent to type every time,
 or just hard to remember.")]
 #[command(version)]
 pub struct TopCommand {
-	/// Prints extra information about what happens at run time.
-	#[arg(short = 'v', long = "verbose", global = true, action = SetTrue)]
+	// Prints extra information about what happens at run time (lowers the logger to TRACE).
+	#[arg(short = 'v', long = "verbose", global = true, action = SetTrue,
+		help = "Prints extra information about what happens at run time",
+		long_help = "Prints extra information about what happens at run time.
+Changes the logger to TRACE.
+You are able to change the logger level to any level (error/info/warn/debug/trace) using the environment variable `SHIMI_LOG`.
+The environment variable has higher priority to this flag."
+	)]
 	pub is_verbose: bool,
 
 	#[command(subcommand)]
