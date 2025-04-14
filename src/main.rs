@@ -2,7 +2,7 @@
 // #![allow(unused, dead_code)] // Shaked-TODO: delete this
 #![deny(unused_must_use)]
 
-pub mod parser;
+pub mod top_command;
 pub mod logger;
 pub mod utils;
 pub mod prelude;
@@ -15,12 +15,12 @@ pub mod sub_commands {
 		pub(super) mod global_ignore;
 	}
 }
-pub use parser::GlobalOptions;
+pub use top_command::GlobalOptions;
 
 use anyhow::Result;
 use log::{error, trace};
 use clap::Parser;
-use parser::TopCommand;
+use top_command::TopCommand;
 
 pub trait Run : Sized {
 	/// # Errors
