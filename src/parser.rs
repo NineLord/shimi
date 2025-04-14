@@ -8,7 +8,7 @@ use super::sub_commands;
 #[command(name = "s", bin_name = "s")]
 #[command(about)]
 #[command(long_about = "A Script of common things a developer might need.
-It contains commands that are too incontinent to type every time,
+It contains commands that are too inconvenient to type every time,
 or just hard to remember.")]
 #[command(version)]
 pub struct TopCommand {
