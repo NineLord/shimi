@@ -20,7 +20,6 @@ pub struct Arguments {
 }
 
 impl Run for Arguments {
-	#[inline]
 	fn run(self, global_options: GlobalOptions) -> Result<()> {
 		RunCommand::run_with_args_sync("git", ["config", "--global", "user.name", &self.user_name])?
 			.exit_ok()?;
