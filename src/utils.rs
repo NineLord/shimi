@@ -1,4 +1,4 @@
-use std::{ffi::{OsStr, OsString}, os::unix::process::CommandExt, path::PathBuf, process::{Command, ExitStatus, Output}};
+use std::{ffi::OsStr, os::unix::process::CommandExt, path::PathBuf, process::{Command, ExitStatus, Output}};
 use anyhow::{anyhow, Context, Result};
 use log::debug;
 use email_address::EmailAddress;

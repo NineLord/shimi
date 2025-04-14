@@ -1,10 +1,6 @@
-use std::{os::unix::process::CommandExt, process::{Command, Output}};
-use anyhow::{anyhow, Context, Result};
-use log::info;
+use anyhow::Result;
 use clap::Args;
 use crate::{utils::{is_valid_email, RunCommand}, GlobalOptions, Run};
-
-use super::command;
 
 #[derive(Args, Debug)]
 #[command(visible_aliases = ["keygen", "ssh-keygen"])]
@@ -19,7 +15,7 @@ pub struct Arguments {
 }
 
 impl Run for Arguments {
-	fn run(self, global_options: GlobalOptions) -> Result<()> {
+	fn run(self, _global_options: GlobalOptions) -> Result<()> {
 		RunCommand::exec_with_args("ssh-keygen", ["-t", "ed25519", "-C", &self.email])
 	}
 }

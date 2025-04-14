@@ -2,17 +2,12 @@ use std::{
 	ffi::OsString,
 	fs,
 	io::Write,
-	os::unix::process::CommandExt,
-	path::{Path, PathBuf},
-	process::Command
+	path::PathBuf,
 };
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use clap::Args;
 use log::debug;
-use tap::Tap;
 use crate::{prelude::*, utils::{default_value_home_dir, RunCommand}, GlobalOptions, Run};
-
-use super::command;
 
 const DEFAULT_FILE_NAME: &str = ".gitignore";
 const COMMON_IGNORES: &[u8] = b"junk
@@ -42,7 +37,7 @@ pub struct Arguments {
 }
 
 impl Run for Arguments {
-	fn run(self, global_options: GlobalOptions) -> Result<()> {
+	fn run(self, _global_options: GlobalOptions) -> Result<()> {
 		let Self { mut path, file_name } = self;
 		
 		if !cfg!(feature = "dry_run") {

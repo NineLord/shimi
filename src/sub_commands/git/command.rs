@@ -19,7 +19,6 @@ pub enum CommandInner {
 }
 
 impl Run for Command {
-	#[inline]
 	fn run(self, global_options: GlobalOptions) -> Result<()> {
 		match self.command {
 			CommandInner::GlobalIgnore(command) => command.run(global_options),

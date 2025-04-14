@@ -1,5 +1,5 @@
 #![warn(clippy::pedantic, clippy::nursery, clippy::perf, clippy::correctness)]
-#![allow(unused, dead_code)] // Shaked-TODO: delete this
+// #![allow(unused, dead_code)] // Shaked-TODO: delete this
 #![deny(unused_must_use)]
 
 pub mod parser;
@@ -29,7 +29,7 @@ pub trait Run : Sized {
 }
 
 fn main() {
-	let mut commands = TopCommand::parse();
+	let commands = TopCommand::parse();
 
 	logger::init(commands.is_verbose);
 
