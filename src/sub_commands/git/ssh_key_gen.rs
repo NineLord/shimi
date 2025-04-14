@@ -1,13 +1,14 @@
 use std::{os::unix::process::CommandExt, process::{Command, Output}};
 use anyhow::{anyhow, Context, Result};
+use log::info;
 use clap::Args;
-use crate::{Run, GlobalOptions, utils::is_valid_email};
+use crate::{utils::{is_valid_email, RunCommand}, GlobalOptions, Run};
 
 use super::command;
 
-/// Generate SSH key.
 #[derive(Args, Debug)]
 #[command(visible_aliases = ["keygen", "ssh-keygen"])]
+#[command(about = "Generate SSH key")]
 #[command(long_about = "Generate SSH key.
 Useful for first time setup ssh connection with your git account.
 Which will allow you to `git clone`/etc.")]
@@ -20,17 +21,6 @@ pub struct Arguments {
 impl Run for Arguments {
 	#[inline]
 	fn run(self, global_options: GlobalOptions) -> Result<()> {
-		let mut command = Command::new("ssh-keygen");
-		command
-			.arg("-t").arg("ed25519")
-			.arg("-C").arg(self.email);
-		if global_options.is_verbose {
-			println!("Debug Mode: {command:?}");
-			return Ok(());
-		}
-
-		let error: Result<()> = Err(anyhow!(command.exec()));
-		eprintln!("The command fail: {command:?}");
-		error
+		RunCommand::exec_with_args("ssh-keygen", ["-t", "ed25519", "-C", &self.email])
 	}
 }
