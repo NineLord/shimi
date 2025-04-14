@@ -45,14 +45,15 @@ impl TopCommand {
 
 #[derive(Subcommand, Debug)]
 pub enum SubCommands {
-	Git(sub_commands::git::Command)
+	Git(sub_commands::git::Command),
+	Config(sub_commands::config::Command),
 }
 
 impl Run for SubCommands {
-	#[inline]
 	fn run(self, global_options: GlobalOptions) -> Result<()> {
 		match self {
 			Self::Git(command) => command.run(global_options),
+			Self::Config(command) => command.run(global_options),
 		}
 	}
 }

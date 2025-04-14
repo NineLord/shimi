@@ -1,3 +1,14 @@
+[tasks.run]
+# Runs in real mode with trace logs.
+# Example: `cargo make dryrun git keygen shimi@gmail.com`
+command = "cargo"
+env = { SHIMI_LOG = "trace" }
+args = [
+	"run",
+	"--",
+	"${@}",
+]
+
 [tasks.dryrun]
 # Runs in dry-run mode with trace logs.
 # Example: `cargo make dryrun git keygen shimi@gmail.com`

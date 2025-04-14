@@ -14,6 +14,7 @@ pub mod sub_commands {
 		pub(super) mod global_user_email;
 		pub(super) mod global_ignore;
 	}
+	pub mod config;
 }
 pub use top_command::GlobalOptions;
 
