@@ -1,6 +1,6 @@
 [package]
 name = "shimi"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 authors = ["Shaked F."]
 
@@ -23,4 +23,3 @@ log = { version = "0.4.27" } # Logger
 # [build-dependencies]
 # clap = { version = "4.5.17", features = ["derive", "cargo"] } # Handles parsing input from command line
 # clap_complete = { version = "4.5.26" } # Generates the shell completion to clap commands
-
