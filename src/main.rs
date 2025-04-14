@@ -1,9 +1,11 @@
 #![warn(clippy::pedantic, clippy::nursery, clippy::perf, clippy::correctness)]
 #![allow(unused, dead_code)] // Shaked-TODO: delete this
+#![deny(unused_must_use)]
 
 pub mod parser;
 pub mod logger;
 pub mod utils;
+pub mod prelude;
 pub mod sub_commands {
 	pub mod git {
 		mod command;

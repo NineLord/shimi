@@ -1,12 +1,12 @@
-use std::{os::unix::process::CommandExt, process::Command};
+use std::{os::unix::process::CommandExt, process::{Command, Output}};
 use anyhow::{anyhow, Result};
 use clap::Args;
-use crate::{Run, GlobalOptions, utils::is_valid_email};
+use crate::{utils::{is_valid_email, RunCommand}, GlobalOptions, Run, prelude::*};
 
 use super::command;
 
-/// Set globally your user name and email.
 #[derive(Args, Debug)]
+#[command(about = "Set globally your user name and email.")]
 #[command(long_about = "Set globally your user name and email.
 Useful if this is main workstation, not shared with others.
 Which will allow you to `git push`/etc.")]
@@ -22,31 +22,10 @@ pub struct Arguments {
 impl Run for Arguments {
 	#[inline]
 	fn run(self, global_options: GlobalOptions) -> Result<()> {
-		let mut set_user_name = Command::new("git");
-		set_user_name
-			.arg("config")
-			.arg("--global").arg("user.name").arg(self.user_name);
-		let mut set_email = Command::new("git");
-		set_email
-			.arg("config")
-			.arg("--global").arg("user.email").arg(self.email);
-
-		if global_options.is_verbose {
-			println!("Debug Mode: {set_user_name:?}");
-			println!("Debug Mode: {set_email:?}");
-			return Ok(());
-		}
-
-		if let Err(error) = set_user_name.output() {
-			eprintln!("The command fail: {set_user_name:?}");
-			return Err(anyhow!(error));
-		}
-
-		if let Err(error) = set_email.output() {
-			eprintln!("The command fail: {set_email:?}");
-			return Err(anyhow!(error));
-		}
-		
+		RunCommand::run_with_args_sync("git", ["config", "--global", "user.name", &self.user_name])?
+			.exit_ok()?;
+		RunCommand::run_with_args_sync("git", ["config", "--global", "user.email", &self.email])?
+			.exit_ok()?;
 		Ok(())
 	}
 }
