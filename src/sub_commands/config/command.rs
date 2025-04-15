@@ -1,8 +1,10 @@
 use anyhow::Result;
-use clap::{Args, ArgAction::SetTrue};
+use clap::Args;
+#[cfg(feature = "manual")]
+use clap::ArgAction::SetTrue;
 use log::info;
 use colored::Colorize;
-use dialoguer::{theme::ColorfulTheme, Confirm, Editor, Input, MultiSelect, InputValidator, Select};
+use dialoguer::{theme::ColorfulTheme, Input, Select};
 use strum::VariantNames;
 use super::{structure::{Config, Orchestration}, file_handler::FileHandler};
 use crate::{Run, GlobalOptions};
@@ -12,6 +14,7 @@ use crate::{Run, GlobalOptions};
 #[command(long_about = "Modify the default behavior of the script.
 Will enter into interactive CLI that will allow you to edit your config file.")]
 pub struct Command {
+	#[cfg(feature = "manual")]
 	#[arg(short = 'w', long = "wizard", action = SetTrue,
 		help = "If turned on, will start a wizard that will go through all the configurations.",
 		long_help = "If turned on, will start a wizard that will go through all the configurations,
@@ -38,6 +41,10 @@ impl Command {
 			Self::style_key("space"), Self::style_key("enter"), Self::style_key("q")
 		);
 	}
+
+	fn get_theme() -> ColorfulTheme {
+		ColorfulTheme::default()
+	}
 }
 
 struct Wizard;
@@ -45,7 +52,7 @@ impl Wizard {
 	fn run(global_options: &GlobalOptions) -> Result<Option<Config>> {
 		let GlobalOptions { is_verbose: _, config } = global_options;
 
-		let theme = ColorfulTheme::default();
+		let theme = Command::get_theme();
 		info!("Welcome to the setup wizard 🧙");
 		Command::print_keybinds();
 
@@ -78,20 +85,40 @@ impl Wizard {
 	}
 }
 
+#[cfg(feature = "manual")]
 struct Manual;
+#[cfg(feature = "manual")]
 impl Manual {
 	fn run(global_options: &GlobalOptions) -> Result<Option<Config>> {
+		let GlobalOptions { is_verbose: _, config } = global_options;
+		
+		let theme = Command::get_theme();
+		Command::print_keybinds();
+		let quit = "QUIT".bold();
+
+		let mut stack: Vec<usize> = vec![];
+		loop {
+			Select::with_theme(&theme)
+				.default(0)
+				.item("Orchestration")
+				.item(&quit);
+
+		}
+
 		unimplemented!()
 	}
 }
 
 impl Run for Command {
 	fn run(self, global_options: &GlobalOptions) -> Result<()> {
+		#[cfg(feature = "manual")]
 		let config = if self.is_wizard {
 			Wizard::run(global_options)
 		} else {
 			Manual::run(global_options)
 		}?;
+		#[cfg(not(feature = "manual"))]
+		let config = Wizard::run(global_options)?;
 
 		match config {
 			Some(config) => FileHandler::save(&config, global_options)?,

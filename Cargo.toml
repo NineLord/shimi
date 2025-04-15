@@ -7,6 +7,7 @@ authors = ["Shaked F."]
 [features]
 default = []
 dry_run = []
+manual = [] # Changes the config command to be wizard and manual
 
 [dependencies]
 tap = "1.0.1" # Allows to tap/pipe/conv on any variable
