@@ -1,7 +1,5 @@
 use anyhow::Result;
 use clap::Args;
-#[cfg(feature = "manual")]
-use clap::ArgAction::SetTrue;
 use log::info;
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Input, Select};
@@ -13,15 +11,7 @@ use crate::{Run, GlobalOptions};
 #[command(about = "Modify the default behavior of the script.")]
 #[command(long_about = "Modify the default behavior of the script.
 Will enter into interactive CLI that will allow you to edit your config file.")]
-pub struct Command {
-	#[cfg(feature = "manual")]
-	#[arg(short = 'w', long = "wizard", action = SetTrue,
-		help = "If turned on, will start a wizard that will go through all the configurations.",
-		long_help = "If turned on, will start a wizard that will go through all the configurations,
-and allow you to edit each one of them."
-	)]
-	pub is_wizard: bool,
-}
+pub struct Command;
 
 // Utils for Interactive Shell
 impl Command {
@@ -85,39 +75,8 @@ impl Wizard {
 	}
 }
 
-#[cfg(feature = "manual")]
-struct Manual;
-#[cfg(feature = "manual")]
-impl Manual {
-	fn run(global_options: &GlobalOptions) -> Result<Option<Config>> {
-		let GlobalOptions { is_verbose: _, config } = global_options;
-		
-		let theme = Command::get_theme();
-		Command::print_keybinds();
-		let quit = "QUIT".bold();
-
-		let mut stack: Vec<usize> = vec![];
-		loop {
-			Select::with_theme(&theme)
-				.default(0)
-				.item("Orchestration")
-				.item(&quit);
-
-		}
-
-		unimplemented!()
-	}
-}
-
 impl Run for Command {
 	fn run(self, global_options: &GlobalOptions) -> Result<()> {
-		#[cfg(feature = "manual")]
-		let config = if self.is_wizard {
-			Wizard::run(global_options)
-		} else {
-			Manual::run(global_options)
-		}?;
-		#[cfg(not(feature = "manual"))]
 		let config = Wizard::run(global_options)?;
 
 		match config {
