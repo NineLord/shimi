@@ -19,7 +19,7 @@ pub enum CommandInner {
 }
 
 impl Run for Command {
-	fn run(self, global_options: GlobalOptions) -> Result<()> {
+	fn run(self, global_options: &GlobalOptions) -> Result<()> {
 		match self.command {
 			CommandInner::GlobalIgnore(command) => command.run(global_options),
 			CommandInner::GlobalUserEmail(command) => command.run(global_options),

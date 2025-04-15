@@ -15,7 +15,7 @@ pub struct Arguments {
 }
 
 impl Run for Arguments {
-	fn run(self, _global_options: GlobalOptions) -> Result<()> {
+	fn run(self, _global_options: &GlobalOptions) -> Result<()> {
 		RunCommand::exec_with_args("ssh-keygen", ["-t", "ed25519", "-C", &self.email])
 	}
 }

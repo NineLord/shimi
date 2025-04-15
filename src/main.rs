@@ -2,7 +2,7 @@
 // #![allow(unused, dead_code)] // Shaked-TODO: delete this
 #![deny(unused_must_use)]
 
-pub mod parser;
+pub mod top_command;
 pub mod logger;
 pub mod utils;
 pub mod prelude;
@@ -14,30 +14,42 @@ pub mod sub_commands {
 		pub(super) mod global_user_email;
 		pub(super) mod global_ignore;
 	}
+	pub mod config {
+		pub use command::Command;
+		pub use structure::Config;
+		pub(crate) use file_handler::FileHandler;
+
+		mod command;
+		mod file_handler;
+		mod structure;
+	}
 }
-pub use parser::GlobalOptions;
+pub use top_command::GlobalOptions;
 
 use anyhow::Result;
 use log::{error, trace};
 use clap::Parser;
-use parser::TopCommand;
+use top_command::TopCommand;
 
 pub trait Run : Sized {
 	/// # Errors
 	/// Should return an error with explanation why the command couldn't run.
-	fn run(self, global_options: GlobalOptions) -> Result<()>;
+	fn run(self, global_options: &GlobalOptions) -> Result<()>;
 }
 
 fn main() {
 	let commands = TopCommand::parse();
-
 	logger::init(commands.is_verbose);
-
-	trace!("Input:\n{commands:#?}");
-
 	let (global_options, command) = commands.into_split();
+
+	trace!("Input - Command:\n{command:#?}");
+	trace!("Input - Global Options:\n{global_options:#?}");
 	
-	if let Err(error) = command.run(global_options) {
-		error!("{error}");
+	if let Err(error) = command.run(&global_options) {
+		if global_options.is_verbose {
+			error!("{error:?}");
+		} else {
+			error!("{error}");
+		}
 	}
 }
