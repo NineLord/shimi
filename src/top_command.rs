@@ -37,7 +37,7 @@ impl TopCommand {
 		(
 			GlobalOptions {
 				is_verbose: self.is_verbose,
-				config: config::Command::read().unwrap_or_default(),
+				config: config::FileHandler::read().unwrap_or_default(),
 			},
 			self.command
 		)

@@ -1,48 +1,15 @@
 use std::{fs, path::PathBuf};
 use anyhow::{Context, Result};
-use clap::{Args, ArgAction::SetTrue};
 use log::info;
 use ron::{ser::PrettyConfig, de::from_reader};
-use serde::{Serialize, Deserialize};
 use tap::Tap;
-use crate::{Run, GlobalOptions, utils::default_value_home_dir};
+use super::structure::Config;
+use crate::utils::default_value_home_dir;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Config {
-	pub orchestration: Orchestration,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum Orchestration {
-	DockerCompose,
-	Kubernetes {
-		name_space: String,
-	},
-}
-
-impl Default for Config {
-	fn default() -> Self {
-		Self {
-			orchestration: Orchestration::DockerCompose
-		}
-	}
-}
-
-#[derive(Args, Debug)]
-#[command(about = "Modify the default behavior of the script.")]
-#[command(long_about = "Modify the default behavior of the script.
-Will enter into interactive CLI that will allow you to edit your config file.")]
-pub struct Command {
-	#[arg(short = 'w', long = "wizard", action = SetTrue,
-		help = "If turned on, will start a wizard that will go through all the configurations.",
-		long_help = "If turned on, will start a wizard that will go through all the configurations,
-and allow you to edit each one of them."
-	)]
-	pub is_wizard: bool,
-}
+pub struct FileHandler;
 
 // Default values
-impl Command {
+impl FileHandler {
 	fn get_pretty_config() -> PrettyConfig {
 		PrettyConfig::new()
 			.depth_limit(5)
@@ -62,12 +29,12 @@ impl Command {
 }
 
 // Read & Write
-impl Command {
+impl FileHandler {
 	/// # Errors
 	/// * Failed to get the path to the config file.
 	/// * Failed to open the config file.
 	/// * Failed to deserialize the config file.
-	pub fn read() -> Result<Config> {
+	pub(crate) fn read() -> Result<Config> {
 		let config_path = Self::get_config_file_path()?;
 
 		let config_file = fs::File::open(&config_path)
@@ -83,7 +50,7 @@ impl Command {
 	/// * Failed to get the path to the config file.
 	/// * Failed to open the config file with write permissions.
 	/// * Failed to serialize the config.
-	fn save(config: &Config) -> Result<()> {
+	pub(super) fn save(config: &Config) -> Result<()> {
 		let config_path = Self::get_config_file_path()?;
 
 		let config_file = fs::OpenOptions::new()
@@ -98,39 +65,6 @@ impl Command {
 			.with_context(|| format!("Failed to write the config file at: {config_path:?}"))?;
 
 		info!("Successfully written the config file to: {config_path:?}");
-		Ok(())
-	}
-}
-
-// Wizard
-impl Command {
-	fn wizard(global_options: &GlobalOptions) -> Option<Config> {
-		let GlobalOptions { is_verbose: _, config } = global_options;
-
-		todo!()
-	}
-}
-
-// Manual
-impl Command {
-	fn manual(global_options: &GlobalOptions) -> Option<Config> {
-		unimplemented!()
-	}
-}
-
-impl Run for Command {
-	fn run(self, global_options: &GlobalOptions) -> Result<()> {
-		let config = if self.is_wizard {
-			Self::wizard(global_options)
-		} else {
-			Self::manual(global_options)
-		};
-
-		match config {
-			Some(config) => Self::save(&config)?,
-			None => info!("Aborted."),
-		}
-
 		Ok(())
 	}
 }
