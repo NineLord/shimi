@@ -2,7 +2,7 @@ use std::{fs, path::PathBuf};
 use anyhow::{Context, Result};
 use clap::Args;
 use log::info;
-use ron::ser::PrettyConfig;
+use ron::{ser::PrettyConfig, de::from_reader};
 use serde::{Serialize, Deserialize};
 use tap::Tap;
 use crate::{Run, GlobalOptions, utils::default_value_home_dir};
@@ -32,6 +32,8 @@ impl Command {
 			.enumerate_arrays(true)
 	}
 
+	/// # Errors
+	/// * Failed to get the path to the home directory of the user.
 	fn get_config_file_path() -> Result<PathBuf> {
 		const CONFIG_FILE_NAME: &str = ".shimirc.ron";
 
@@ -42,7 +44,27 @@ impl Command {
 	}
 }
 
+// Read & Write
 impl Command {
+	/// # Errors
+	/// * Failed to get the path to the config file.
+	/// * Failed to open the config file.
+	/// * Failed to deserialize the config file.
+	pub fn read() -> Result<Config> {
+		let config_path = Self::get_config_file_path()?;
+
+		let config_file = fs::File::open(config_path)
+			.context("Failed to open the config file")?;
+
+		let config: Config = from_reader(config_file)
+			.context("Failed to deserialize the config file")?;
+		Ok(config)
+	}
+
+	/// # Errors
+	/// * Failed to get the path to the config file.
+	/// * Failed to open the config file with write permissions.
+	/// * Failed to serialize the config.
 	fn save(config: &Config) -> Result<()> {
 		let config_path = Self::get_config_file_path()?;
 
