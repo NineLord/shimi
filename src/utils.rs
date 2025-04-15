@@ -2,8 +2,7 @@ use std::{ffi::OsStr, os::unix::process::CommandExt, path::PathBuf, process::{Co
 use anyhow::{anyhow, Context, Result};
 use log::debug;
 use email_address::EmailAddress;
-
-pub use xdg_home::home_dir;
+use xdg_home::home_dir;
 
 /// # Errors
 /// The current operations system don't have home directory defined.

@@ -19,6 +19,8 @@ colored = { version = "3.0.0" } # Color strings for the terminal
 env_logger = { version = "0.11.8" }
 colog = { version = "1.3.0" } # Logger Formatter
 log = { version = "0.4.27" } # Logger
+serde = { version = "1.0.219", features = ["derive"] } # Serialize and deserialize data
+ron = { version = "0.10.1" } # Ron format
 
 # [build-dependencies]
 # clap = { version = "4.5.17", features = ["derive", "cargo"] } # Handles parsing input from command line
