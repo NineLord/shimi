@@ -1,7 +1,5 @@
 use anyhow::Result;
-use clap::Args;
-#[cfg(feature = "manual")]
-use clap::ArgAction::SetTrue;
+use clap::{Args, ArgAction::SetTrue};
 use log::info;
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Input, Select};
@@ -14,7 +12,6 @@ use crate::{Run, GlobalOptions};
 #[command(long_about = "Modify the default behavior of the script.
 Will enter into interactive CLI that will allow you to edit your config file.")]
 pub struct Command {
-	#[cfg(feature = "manual")]
 	#[arg(short = 'w', long = "wizard", action = SetTrue,
 		help = "If turned on, will start a wizard that will go through all the configurations.",
 		long_help = "If turned on, will start a wizard that will go through all the configurations,
@@ -85,9 +82,7 @@ impl Wizard {
 	}
 }
 
-#[cfg(feature = "manual")]
 struct Manual;
-#[cfg(feature = "manual")]
 impl Manual {
 	fn run(global_options: &GlobalOptions) -> Result<Option<Config>> {
 		let GlobalOptions { is_verbose: _, config } = global_options;
@@ -111,14 +106,11 @@ impl Manual {
 
 impl Run for Command {
 	fn run(self, global_options: &GlobalOptions) -> Result<()> {
-		#[cfg(feature = "manual")]
 		let config = if self.is_wizard {
 			Wizard::run(global_options)
 		} else {
 			Manual::run(global_options)
 		}?;
-		#[cfg(not(feature = "manual"))]
-		let config = Wizard::run(global_options)?;
 
 		match config {
 			Some(config) => FileHandler::save(&config, global_options)?,
