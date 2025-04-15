@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 use anyhow::{Context, Result};
-use clap::Args;
+use clap::{Args, ArgAction::SetTrue};
 use log::info;
 use ron::{ser::PrettyConfig, de::from_reader};
 use serde::{Serialize, Deserialize};
@@ -28,9 +28,18 @@ impl Default for Config {
 	}
 }
 
-/// Modify the default behavior of the script.
 #[derive(Args, Debug)]
-pub struct Command;
+#[command(about = "Modify the default behavior of the script.")]
+#[command(long_about = "Modify the default behavior of the script.
+Will enter into interactive CLI that will allow you to edit your config file.")]
+pub struct Command {
+	#[arg(short = 'w', long = "wizard", action = SetTrue,
+		help = "If turned on, will start a wizard that will go through all the configurations.",
+		long_help = "If turned on, will start a wizard that will go through all the configurations,
+and allow you to edit each one of them."
+	)]
+	pub is_wizard: bool,
+}
 
 // Default values
 impl Command {
@@ -93,21 +102,35 @@ impl Command {
 	}
 }
 
+// Wizard
+impl Command {
+	fn wizard(global_options: &GlobalOptions) -> Option<Config> {
+		let GlobalOptions { is_verbose: _, config } = global_options;
+
+		todo!()
+	}
+}
+
+// Manual
+impl Command {
+	fn manual(global_options: &GlobalOptions) -> Option<Config> {
+		unimplemented!()
+	}
+}
+
 impl Run for Command {
 	fn run(self, global_options: &GlobalOptions) -> Result<()> {
-		// let config = Config { orchestration: Orchestration::Kubernetes { name_space: String::from("bob") } };
-		// Self::save(&config)?;
-		Self::save(&global_options.config)?;
+		let config = if self.is_wizard {
+			Self::wizard(global_options)
+		} else {
+			Self::manual(global_options)
+		};
 
-		// Self::read()?;
+		match config {
+			Some(config) => Self::save(&config)?,
+			None => info!("Aborted."),
+		}
 
-		/*
-		 * Shaked-TODO:
-		 * 1. Add to main code that tries to load the config file.
-		 * 2. then add it to the GlobalOptions.
-		 * 3. Learn how to do interactive terminal to edit the config file.
-		 * 4. Continue with the docker commands
-		 */
 		Ok(())
 	}
 }
