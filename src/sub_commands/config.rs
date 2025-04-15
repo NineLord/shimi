@@ -20,6 +20,14 @@ pub enum Orchestration {
 	},
 }
 
+impl Default for Config {
+	fn default() -> Self {
+		Self {
+			orchestration: Orchestration::DockerCompose
+		}
+	}
+}
+
 /// Modify the default behavior of the script.
 #[derive(Args, Debug)]
 pub struct Command;
@@ -53,11 +61,12 @@ impl Command {
 	pub fn read() -> Result<Config> {
 		let config_path = Self::get_config_file_path()?;
 
-		let config_file = fs::File::open(config_path)
-			.context("Failed to open the config file")?;
+		let config_file = fs::File::open(&config_path)
+			.with_context(|| format!("Failed to open the config file at: {config_path:?}"))?;
 
 		let config: Config = from_reader(config_file)
-			.context("Failed to deserialize the config file")?;
+			.with_context(|| format!("Failed to deserialize the config file at: {config_path:?}"))?;
+
 		Ok(config)
 	}
 
@@ -69,13 +78,15 @@ impl Command {
 		let config_path = Self::get_config_file_path()?;
 
 		let config_file = fs::OpenOptions::new()
+			.create(true)
 			.truncate(true)
 			.write(true)
-			.open(&config_path)?;
+			.open(&config_path)
+			.with_context(|| format!("failed to open the config file with write permissions at: {config_path:?}"))?;
 
 		ron::Options::default()
 			.to_io_writer_pretty(&config_file, &config, Self::get_pretty_config())
-			.context("Failed to write the config file")?;
+			.with_context(|| format!("Failed to write the config file at: {config_path:?}"))?;
 
 		info!("Successfully written the config file to: {config_path:?}");
 		Ok(())
@@ -83,9 +94,13 @@ impl Command {
 }
 
 impl Run for Command {
-	fn run(self, _global_options: GlobalOptions) -> Result<()> {
-		let config = Config { orchestration: Orchestration::Kubernetes { name_space: String::from("bob") } };
-		Self::save(&config)?;
+	fn run(self, global_options: &GlobalOptions) -> Result<()> {
+		// let config = Config { orchestration: Orchestration::Kubernetes { name_space: String::from("bob") } };
+		// Self::save(&config)?;
+		Self::save(&global_options.config)?;
+
+		// Self::read()?;
+
 		/*
 		 * Shaked-TODO:
 		 * 1. Add to main code that tries to load the config file.
