@@ -1,7 +1,10 @@
 use anyhow::Result;
 use clap::{Args, ArgAction::SetTrue};
 use log::info;
-use super::{structure::Config, file_handler::FileHandler};
+use colored::Colorize;
+use dialoguer::{theme::ColorfulTheme, Confirm, Editor, Input, MultiSelect, InputValidator, Select};
+use strum::VariantNames;
+use super::{structure::{Config, Orchestration}, file_handler::FileHandler};
 use crate::{Run, GlobalOptions};
 
 #[derive(Args, Debug)]
@@ -17,18 +20,67 @@ and allow you to edit each one of them."
 	pub is_wizard: bool,
 }
 
-// Wizard
+// Utils for Interactive Shell
 impl Command {
-	fn wizard(global_options: &GlobalOptions) -> Option<Config> {
-		let GlobalOptions { is_verbose: _, config } = global_options;
+	fn style_key(key: &str) -> String {
+		format!("{}{}{}",
+			"[".bright_red(),
+			key.bold().white(),
+			"]".bright_red(),
+		)
+	}
 
-		todo!()
+	fn print_keybinds() {
+		info!("Keybinds:
+{} Select
+{} Select and continue
+{} Continue without selecting",
+			Self::style_key("space"), Self::style_key("enter"), Self::style_key("q")
+		);
 	}
 }
 
-// Manual
-impl Command {
-	fn manual(global_options: &GlobalOptions) -> Option<Config> {
+struct Wizard;
+impl Wizard {
+	fn run(global_options: &GlobalOptions) -> Result<Option<Config>> {
+		let GlobalOptions { is_verbose: _, config } = global_options;
+
+		let theme = ColorfulTheme::default();
+		info!("Welcome to the setup wizard 🧙");
+		Command::print_keybinds();
+
+		let orchestration = Select::with_theme(&theme)
+			.with_prompt("Pick orchestration")
+			.default(config.orchestration.discriminant() as usize)
+			.items(Orchestration::VARIANTS)
+			.interact()?;
+		let orchestration = u8::try_from(orchestration)
+			.expect("Could fail only if Orchestration has more than u8::MAX variants");
+		let orchestration = Orchestration::from_repr(orchestration)
+			.expect("dialoguer::prompts::select::Select insures only valid discriminant will be received");
+
+		let orchestration = match orchestration {
+			Orchestration::DockerCompose => Orchestration::DockerCompose,
+			Orchestration::Kubernetes { .. } => {
+				let input = Input::with_theme(&theme)
+					.with_prompt("Pick Name-Space");
+				let input = if let Orchestration::Kubernetes { name_space } = &config.orchestration {
+					input.with_initial_text(name_space)
+				} else {
+					input
+				};
+				let name_space: String = input.interact_text()?;
+				Orchestration::Kubernetes { name_space }
+			},
+		};
+
+		Ok(Some(Config { orchestration }))
+	}
+}
+
+struct Manual;
+impl Manual {
+	fn run(global_options: &GlobalOptions) -> Result<Option<Config>> {
 		unimplemented!()
 	}
 }
@@ -36,13 +88,13 @@ impl Command {
 impl Run for Command {
 	fn run(self, global_options: &GlobalOptions) -> Result<()> {
 		let config = if self.is_wizard {
-			Self::wizard(global_options)
+			Wizard::run(global_options)
 		} else {
-			Self::manual(global_options)
-		};
+			Manual::run(global_options)
+		}?;
 
 		match config {
-			Some(config) => FileHandler::save(&config)?,
+			Some(config) => FileHandler::save(&config, global_options)?,
 			None => info!("Aborted."),
 		}
 

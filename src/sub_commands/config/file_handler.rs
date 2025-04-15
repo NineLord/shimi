@@ -4,7 +4,7 @@ use log::info;
 use ron::{ser::PrettyConfig, de::from_reader};
 use tap::Tap;
 use super::structure::Config;
-use crate::utils::default_value_home_dir;
+use crate::{GlobalOptions, utils::default_value_home_dir};
 
 pub struct FileHandler;
 
@@ -50,21 +50,27 @@ impl FileHandler {
 	/// * Failed to get the path to the config file.
 	/// * Failed to open the config file with write permissions.
 	/// * Failed to serialize the config.
-	pub(super) fn save(config: &Config) -> Result<()> {
+	pub(super) fn save(config: &Config, global_options: &GlobalOptions) -> Result<()> {
 		let config_path = Self::get_config_file_path()?;
 
-		let config_file = fs::OpenOptions::new()
-			.create(true)
-			.truncate(true)
-			.write(true)
-			.open(&config_path)
-			.with_context(|| format!("failed to open the config file with write permissions at: {config_path:?}"))?;
+		if !cfg!(feature = "dry_run") {
+			let config_file = fs::OpenOptions::new()
+				.create(true)
+				.truncate(true)
+				.write(true)
+				.open(&config_path)
+				.with_context(|| format!("failed to open the config file with write permissions at: {config_path:?}"))?;
+	
+			ron::Options::default()
+				.to_io_writer_pretty(&config_file, &config, Self::get_pretty_config())
+				.with_context(|| format!("Failed to write the config file at: {config_path:?}"))?;
+		}
 
-		ron::Options::default()
-			.to_io_writer_pretty(&config_file, &config, Self::get_pretty_config())
-			.with_context(|| format!("Failed to write the config file at: {config_path:?}"))?;
-
-		info!("Successfully written the config file to: {config_path:?}");
+		if global_options.is_verbose {
+			info!("Successfully written the config file to: {config_path:?}");
+		} else {
+			info!("Config file updated");
+		}
 		Ok(())
 	}
 }
