@@ -25,6 +25,7 @@ The environment variable has higher priority to this flag."
 	pub command: SubCommands,
 }
 
+#[derive(Debug)]
 pub struct GlobalOptions {
 	pub is_verbose: bool,
 	pub config: Config,

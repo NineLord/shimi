@@ -32,10 +32,10 @@ pub trait Run : Sized {
 fn main() {
 	let commands = TopCommand::parse();
 	logger::init(commands.is_verbose);
-
-	trace!("Input:\n{commands:#?}");
-
 	let (global_options, command) = commands.into_split();
+
+	trace!("Input - Command:\n{command:#?}");
+	trace!("Input - Global Options:\n{global_options:#?}");
 	
 	if let Err(error) = command.run(&global_options) {
 		if global_options.is_verbose {
