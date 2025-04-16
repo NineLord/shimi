@@ -1,3 +1,4 @@
+use std::process;
 use anyhow::Result;
 use clap::{ArgAction::SetTrue, CommandFactory, FromArgMatches, Parser, Subcommand};
 use log::error;
@@ -39,10 +40,10 @@ impl TopCommand {
 	pub fn parse() -> (GlobalOptions, SubCommands) {
 		let (version, top_command) = Self::parse_version();
 		logger::init(top_command.is_verbose);
-		let version = version.map_or_else(|| {
-  				error!("Shimi script missing current version number");
-  				std::process::exit(1);
-  			}, |version| version);
+		let Some(version) = version else {
+			error!("Shimi script missing current version number");
+			process::exit(1);
+		};
 		(
 			GlobalOptions {
 				is_verbose: top_command.is_verbose,
