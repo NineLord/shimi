@@ -4,7 +4,7 @@ use log::info;
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Input, Select};
 use strum::VariantNames;
-use super::{structure::{Config, Orchestration}, file_handler::FileHandler};
+use super::{structure::{Config, OrchestrationType, Orchestration, Kubernetes}, file_handler::FileHandler};
 use crate::{Run, GlobalOptions};
 
 #[derive(Args, Debug)]
@@ -48,26 +48,32 @@ impl Wizard {
 
 		let orchestration = Select::with_theme(&theme)
 			.with_prompt("Pick orchestration")
-			.default(config.orchestration.discriminant() as usize)
-			.items(Orchestration::VARIANTS)
+			.default(config.orchestration.variant.discriminant() as usize)
+			.items(OrchestrationType::VARIANTS)
 			.interact()?;
 		let orchestration = u8::try_from(orchestration)
 			.expect("Could fail only if Orchestration has more than u8::MAX variants");
-		let orchestration = Orchestration::from_repr(orchestration)
+		let orchestration = OrchestrationType::from_repr(orchestration)
 			.expect("dialoguer::prompts::select::Select insures only valid discriminant will be received");
 
 		let orchestration = match orchestration {
-			Orchestration::DockerCompose => Orchestration::DockerCompose,
-			Orchestration::Kubernetes { .. } => {
+			OrchestrationType::DockerCompose => Orchestration {
+				variant: OrchestrationType::DockerCompose,
+				kubernetes: config.orchestration.kubernetes.clone(),
+			},
+			OrchestrationType::Kubernetes => {
 				let input = Input::with_theme(&theme)
 					.with_prompt("Pick Name-Space");
-				let input = if let Orchestration::Kubernetes { name_space } = &config.orchestration {
+				let input = if let Some(Kubernetes { name_space }) = &config.orchestration.kubernetes {
 					input.with_initial_text(name_space)
 				} else {
 					input
 				};
 				let name_space: String = input.interact_text()?;
-				Orchestration::Kubernetes { name_space }
+				Orchestration {
+					variant: OrchestrationType::Kubernetes,
+					kubernetes: Some(Kubernetes { name_space })
+				}
 			},
 		};
 

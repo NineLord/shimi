@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::{ArgAction::SetTrue, CommandFactory, FromArgMatches, Parser, Subcommand};
-use crate::{sub_commands::{self, config::{self, Config}}, Run};
+use log::error;
+use crate::{logger, sub_commands::{self, config::{self, Config}}, Run};
 
 #[derive(Parser, Debug)]
 #[command(name = "s", bin_name = "s")]
@@ -37,11 +38,15 @@ impl TopCommand {
 	#[must_use]
 	pub fn parse() -> (GlobalOptions, SubCommands) {
 		let (version, top_command) = Self::parse_version();
-		let version = version.expect("Shimi script missing current version number");
+		logger::init(top_command.is_verbose);
+		let version = version.map_or_else(|| {
+  				error!("Shimi script missing current version number");
+  				std::process::exit(1);
+  			}, |version| version);
 		(
 			GlobalOptions {
 				is_verbose: top_command.is_verbose,
-				config: config::FileHandler::read().unwrap_or_else(|_| Config::default(version.clone())),
+				config: config::FileHandler::read(&version).unwrap_or_else(|_| Config::default(version.clone())),
 				version,
 			},
 			top_command.command
