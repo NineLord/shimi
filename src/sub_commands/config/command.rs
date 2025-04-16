@@ -103,7 +103,7 @@ impl Wizard {
 			return Ok(global_options.config.orchestration.aliases.clone());
 		}
 
-		let mut reversed_aliases = Self::get_reverse_orch_aliases(global_options);
+		let mut reversed_aliases = Self::get_reverse_orch_aliases(&global_options.config.orchestration.aliases);
 
 		loop {
 			#[derive(EnumString, FromRepr, VariantNames)]
@@ -331,14 +331,28 @@ impl Wizard {
 
 	/// Generate a mapping from container names to their aliases,
 	/// according to the current config.
-	fn get_reverse_orch_aliases(global_options: &GlobalOptions) -> HashMap<String, HashSet<String>> {
-		todo!()
+	fn get_reverse_orch_aliases(aliases: &HashMap<String, String>) -> HashMap<String, HashSet<String>> {
+		aliases
+			.iter()
+			.map(|(alias, container_name)| (alias.clone(), container_name.clone()))
+			.fold(HashMap::new(), |mut result, (alias, container_name)| {
+				result.entry(container_name).or_default().insert(alias);
+				result
+			})
 	}
 
 	/// Reverse a mapping from container names to their aliases,
 	/// back to the config format.
 	fn get_restore_orch_aliases(reversed_aliases: HashMap<String, HashSet<String>>) -> HashMap<String, String> {
-		todo!()
+		reversed_aliases
+			.into_iter()
+			.fold(HashMap::new(), |mut result, (container_name, aliases)| {
+				aliases
+					.into_iter()
+					.map(|alias| (alias, container_name.clone()))
+					.pipe(|iter| result.extend(iter));
+				result
+			})
 	}
 
 	fn pick_kubernetes_name_space(global_options: &GlobalOptions, theme: &dyn Theme) -> Result<String> {
