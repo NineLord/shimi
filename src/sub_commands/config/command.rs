@@ -55,6 +55,11 @@ impl Wizard {
 		})
 	}
 
+	// Shaked-TODO:
+	// * A lot of duplicate code here, can be merged.
+	// * Can unify the look/feel of the prompts, same emojis, use "Go Back" options everywhere.
+	// * Split the alias modification from the orchestration, allow the user to pick if to modify it specifically.
+
 	fn pick_orch_type(global_options: &GlobalOptions, theme: &dyn Theme) -> Result<OrchestrationType> {
 		let orchestration_index = Select::with_theme(theme)
 			.with_prompt("Pick orchestration")
