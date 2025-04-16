@@ -17,7 +17,9 @@ anyhow = { version = "1.0.97" } # Error handling
 
 email_address = "0.2.9" # Validates email address
 xdg-home = "1.3.0" # Gets the user's home directory
+
 time = { version = "0.3.41", features = ["local-offset", "formatting", "macros"] } # Date and time handling
+hashbrown = { version = "0.15.2", features = ["serde"] } # HashMap and HashSet
 
 env_logger = { version = "0.11.8" } # Environment variables for the logger
 colog = { version = "1.3.0" } # Logger Formatter
@@ -28,7 +30,7 @@ strum = { version = "0.27.1", features = ["derive"] } # Enum utilities
 
 ron = { version = "0.10.1" } # Ron format
 colored = { version = "3.0.0" } # Color strings for the terminal
-dialoguer = { version = "0.11.0" } # Interactive command line dialog
+dialoguer = { version = "0.11.0", features = ["fuzzy-select"] } # Interactive command line dialog
 
 # [build-dependencies]
 # clap = { version = "4.5.17", features = ["derive", "cargo"] } # Handles parsing input from command line
