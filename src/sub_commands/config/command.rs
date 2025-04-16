@@ -1,7 +1,7 @@
 use tap::prelude::*;
 use anyhow::Result;
 use clap::Args;
-use log::info;
+use log::{info, warn};
 use colored::Colorize;
 use dialoguer::{theme::{ColorfulTheme, Theme}, Input, MultiSelect, Select, Confirm, FuzzySelect};
 use hashbrown::{HashMap, hash_map::{Entry, OccupiedEntry}, HashSet};
@@ -138,7 +138,8 @@ impl Wizard {
 
 	fn select_orch_container_name(theme: &dyn Theme, reversed_aliases: &mut HashMap<String, HashSet<String>>) -> Result<()> {
 		let mut options = vec![
-			"🆕 Add new container name"
+			"🆕 Add new container name",
+			"Go back",
 		];
 		reversed_aliases
 			.keys()
@@ -146,15 +147,11 @@ impl Wizard {
 			.pipe(|iter| options.extend(iter));
 		
 		let selection = FuzzySelect::with_theme(theme)
-			.with_prompt(format!("Pick the container name to modify (Reminder: {} to quit)", Command::style_key("q")))
+			.with_prompt("Pick the container name to modify")
 			.default(0)
 			.items(&options)
 			.report(false)
-			.interact_opt()?;
-
-		let Some(selection) = selection else {
-			return Ok(());
-		};
+			.interact()?;
 
 		match selection {
 			0 => {
@@ -164,6 +161,9 @@ impl Wizard {
 					.interact_text()?;
 				let _ = reversed_aliases.try_insert(new_container_name, HashSet::default());
 			},
+			1 => {
+				return Ok(());
+			}
 			index => {
 				// SAFETY:
 				// The index that return from `FuzzySelect` should correspond
@@ -188,6 +188,7 @@ impl Wizard {
 			"🆕 Add new alias to this container name",
 			"❌ Remove this container name and all of his aliases",
 			"❌ Remove multiple aliases",
+			"Go Back",
 		];
 
 		container
@@ -195,17 +196,13 @@ impl Wizard {
 			.iter()
 			.map(|alias | -> &str { alias.as_ref() })
 			.pipe(|iter| options.extend(iter));
-		
+
 		let selection = FuzzySelect::with_theme(theme)
-			.with_prompt(format!("Pick the alias to modify (Reminder: {} to quit)", Command::style_key("q")))
+			.with_prompt(format!("Pick the alias to modify (for container name: {:?})", container.key()))
 			.default(0)
 			.items(&options)
 			.report(false)
-			.interact_opt()?;
-
-		let Some(selection) = selection else {
-			return Ok(false);
-		};
+			.interact()?;
 
 		match selection {
 			0 => {
@@ -222,6 +219,9 @@ impl Wizard {
 			2 => {
 				Self::multi_remove_orch_alias(theme, container)?;
 				Self::select_specific_orch_alias(theme, container)
+			},
+			3 => {
+				Ok(false)
 			},
 			index => {
 				// SAFETY:
@@ -263,6 +263,7 @@ impl Wizard {
 				let new_alias = Input::with_theme(theme)
 					.with_prompt("Rename the alias")
 					.with_initial_text(alias)
+					.report(false)
 					.interact_text()?;
 
 				aliases.remove(alias);
@@ -347,10 +348,17 @@ impl Wizard {
 		reversed_aliases
 			.into_iter()
 			.fold(HashMap::new(), |mut result, (container_name, aliases)| {
-				aliases
-					.into_iter()
-					.map(|alias| (alias, container_name.clone()))
-					.pipe(|iter| result.extend(iter));
+				for alias in aliases {
+					match result.entry(alias) {
+						Entry::Vacant(entry) => {
+							entry.insert(container_name.clone());
+						},
+						Entry::Occupied(entry) => {
+							warn!("The alias {0:?} points to two different container names: {1:?} and {2:?} ; Ignoring: {2:?}",
+								entry.key(), entry.get(), container_name);
+						},
+					}
+				}
 				result
 			})
 	}
