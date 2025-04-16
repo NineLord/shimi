@@ -38,7 +38,6 @@ pub trait Run : Sized {
 
 fn main() {
 	let (global_options, command) = TopCommand::parse();
-	logger::init(global_options.is_verbose);
 
 	trace!("Input - Command:\n{command:#?}");
 	trace!("Input - Global Options:\n{global_options:#?}");
