@@ -1,25 +1,25 @@
 use serde::{Serialize, Deserialize};
 use strum::{EnumString, FromRepr, VariantNames};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
 	pub version: String,
 	pub orchestration: Orchestration,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Orchestration {
-	pub r#type: OrchestrationType,
+	pub variant: OrchestrationType,
 	pub kubernetes: Option<Kubernetes>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Kubernetes {
 	pub name_space: String,
 }
 
 #[allow(clippy::unsafe_derive_deserialize)]
-#[derive(Debug, Serialize, Deserialize, EnumString, FromRepr, VariantNames)]
+#[derive(Debug, Clone, Serialize, Deserialize, EnumString, FromRepr, VariantNames)]
 #[repr(u8)]
 pub enum OrchestrationType {
 	#[strum(serialize = "Docker-Compose")]
@@ -43,7 +43,7 @@ impl Config {
 		Self {
 			version,
 			orchestration: Orchestration {
-				r#type: OrchestrationType::DockerCompose,
+				variant: OrchestrationType::DockerCompose,
 				kubernetes: None,
 			},
 		}

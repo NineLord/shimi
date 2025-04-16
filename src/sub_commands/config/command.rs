@@ -48,7 +48,7 @@ impl Wizard {
 
 		let orchestration = Select::with_theme(&theme)
 			.with_prompt("Pick orchestration")
-			.default(config.orchestration.r#type.discriminant() as usize)
+			.default(config.orchestration.variant.discriminant() as usize)
 			.items(OrchestrationType::VARIANTS)
 			.interact()?;
 		let orchestration = u8::try_from(orchestration)
@@ -57,7 +57,10 @@ impl Wizard {
 			.expect("dialoguer::prompts::select::Select insures only valid discriminant will be received");
 
 		let orchestration = match orchestration {
-			OrchestrationType::DockerCompose => Orchestration { r#type: OrchestrationType::DockerCompose, kubernetes: None },
+			OrchestrationType::DockerCompose => Orchestration {
+				variant: OrchestrationType::DockerCompose,
+				kubernetes: config.orchestration.kubernetes.clone(),
+			},
 			OrchestrationType::Kubernetes => {
 				let input = Input::with_theme(&theme)
 					.with_prompt("Pick Name-Space");
@@ -68,7 +71,7 @@ impl Wizard {
 				};
 				let name_space: String = input.interact_text()?;
 				Orchestration {
-					r#type: OrchestrationType::Kubernetes,
+					variant: OrchestrationType::Kubernetes,
 					kubernetes: Some(Kubernetes { name_space })
 				}
 			},
