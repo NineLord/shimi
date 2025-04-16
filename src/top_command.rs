@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{Parser, Subcommand, ArgAction::SetTrue};
+use clap::{ArgAction::SetTrue, CommandFactory, FromArgMatches, Parser, Subcommand};
 use crate::{sub_commands::{self, config::{self, Config}}, Run};
 
 #[derive(Parser, Debug)]
@@ -27,20 +27,41 @@ The environment variable has higher priority to this flag."
 #[derive(Debug)]
 pub struct GlobalOptions {
 	pub is_verbose: bool,
+	pub version: String,
 	pub config: Config,
 }
 
 impl TopCommand {
-	#[inline]
+	/// # Panics
+	/// If missing version at `Cargo.toml`.
 	#[must_use]
-	pub fn into_split(self) -> (GlobalOptions, SubCommands) {
+	pub fn parse() -> (GlobalOptions, SubCommands) {
+		let (version, top_command) = Self::parse_version();
 		(
 			GlobalOptions {
-				is_verbose: self.is_verbose,
+				is_verbose: top_command.is_verbose,
+				version: version.expect("Shimi script missing current version number"),
 				config: config::FileHandler::read().unwrap_or_default(),
 			},
-			self.command
+			top_command.command
 		)
+	}
+
+	/// Modified version of [`clap_builder::derive::Parser::parse()`]
+	/// that also returned the version of the command.
+	fn parse_version() -> (Option<String>, Self) {
+		let command = <Self as CommandFactory>::command();
+		let version = command.get_version().map(String::from);
+		let mut matches = command.get_matches();
+        let result = <Self as FromArgMatches>::from_arg_matches_mut(&mut matches)
+            .map_err(|error| {
+				let mut command = <Self as CommandFactory>::command();
+				error.format(&mut command)
+			});
+        match result {
+            Ok(command) => (version, command),
+            Err(error) => error.exit(),
+        }
 	}
 }
 
