@@ -71,7 +71,10 @@ impl Wizard {
 			},
 		};
 
-		Ok(Some(Config { orchestration }))
+		Ok(Some(Config {
+			version: version.clone(), // Always upgrade to the current version
+			orchestration
+		}))
 	}
 }
 

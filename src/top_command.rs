@@ -37,11 +37,12 @@ impl TopCommand {
 	#[must_use]
 	pub fn parse() -> (GlobalOptions, SubCommands) {
 		let (version, top_command) = Self::parse_version();
+		let version = version.expect("Shimi script missing current version number");
 		(
 			GlobalOptions {
 				is_verbose: top_command.is_verbose,
-				version: version.expect("Shimi script missing current version number"),
-				config: config::FileHandler::read().unwrap_or_default(),
+				config: config::FileHandler::read().unwrap_or_else(|_| Config::default(version.clone())),
+				version,
 			},
 			top_command.command
 		)

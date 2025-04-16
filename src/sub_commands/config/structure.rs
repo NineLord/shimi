@@ -3,6 +3,7 @@ use strum::{EnumString, FromRepr, VariantNames};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
+	pub version: String,
 	pub orchestration: Orchestration,
 }
 
@@ -27,9 +28,11 @@ impl Orchestration {
     }
 }
 
-impl Default for Config {
-	fn default() -> Self {
+impl Config {
+	#[must_use]
+	pub const fn default(version: String) -> Self {
 		Self {
+			version,
 			orchestration: Orchestration::DockerCompose
 		}
 	}
