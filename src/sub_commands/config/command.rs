@@ -223,8 +223,57 @@ impl Wizard {
 				Self::multi_remove_orch_alias(theme, container)?;
 				Self::select_specific_orch_alias(theme, container)
 			},
-			index => todo!(),
+			index => {
+				// SAFETY:
+				// The index that return from `FuzzySelect` should correspond
+				// to the index at `options`.
+				let alias = String::from(*unsafe { options.get_unchecked(index) });
+				Self::modify_specific_orch_alias(theme, &alias, container.get_mut())?;
+				Self::select_specific_orch_alias(theme, container)
+			},
 		}
+	}
+
+	fn modify_specific_orch_alias(theme: &dyn Theme, alias: &str, aliases: &mut HashSet<String>) -> Result<()> {
+		#[derive(EnumString, FromRepr, VariantNames)]
+		#[repr(u8)]
+		enum Operations {
+			#[strum(serialize = "♻️ Rename")]
+			Rename,
+			#[strum(serialize = "❌ Remove")]
+			Remove,
+		}
+
+		let operation_index = Select::with_theme(theme)
+			.with_prompt(format!("What operation would you like to do? (Reminder: {} to quit)", Command::style_key("q")))
+			.default(Operations::Rename as usize)
+			.items(Operations::VARIANTS)
+			.report(false)
+			.interact_opt()?;
+		let Some(operation_index) = operation_index else {
+			return Ok(());
+		};
+		let operation_index = u8::try_from(operation_index)
+			.expect("Could fail only if Operations has more than u8::MAX variants");
+		let operation = Operations::from_repr(operation_index)
+			.expect("dialoguer::prompts::select::Select insures only valid discriminant will be received");
+
+		match operation {
+			Operations::Rename => {
+				let new_alias = Input::with_theme(theme)
+					.with_prompt("Rename the alias")
+					.with_initial_text(alias)
+					.interact_text()?;
+
+				aliases.remove(alias);
+				aliases.insert(new_alias);
+			},
+			Operations::Remove => {
+				aliases.remove(alias);
+			},
+		}
+
+		Ok(())
 	}
 
 	fn multi_remove_orch_alias<S>(theme: &dyn Theme, container: &mut OccupiedEntry<'_, String, HashSet<String>, S>) -> Result<()> {
