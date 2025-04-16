@@ -1,7 +1,7 @@
 use std::process;
 use anyhow::Result;
 use clap::{ArgAction::SetTrue, CommandFactory, FromArgMatches, Parser, Subcommand};
-use log::error;
+use log::{warn, error};
 use crate::{logger, sub_commands::{self, config::{self, Config}}, Run};
 
 #[derive(Parser, Debug)]
@@ -31,6 +31,7 @@ pub struct GlobalOptions {
 	pub is_verbose: bool,
 	pub version: String,
 	pub config: Config,
+	pub is_fail_to_parse_config: bool,
 }
 
 impl TopCommand {
@@ -44,10 +45,22 @@ impl TopCommand {
 			error!("Shimi script missing current version number");
 			process::exit(1);
 		};
+
+		let (config, is_fail_to_parse_config) = match config::FileHandler::read() {
+			Ok(Some(config)) => (config, false),
+			Err(_) => (Config::default(version.clone()), false),
+			Ok(None) => {
+				warn!("Failed to parse previous config file.
+could it be from previous versions of the tool? (Current version: {version:?})
+Continuing with default config."); // No backward support as of yet.
+				(Config::default(version.clone()), true)
+			},
+		};
 		(
 			GlobalOptions {
 				is_verbose: top_command.is_verbose,
-				config: config::FileHandler::read(&version).unwrap_or_else(|_| Config::default(version.clone())),
+				config,
+				is_fail_to_parse_config,
 				version,
 			},
 			top_command.command

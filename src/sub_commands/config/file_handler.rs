@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 use anyhow::{Context, Result};
-use log::{info, warn};
+use log::info;
 use ron::{ser::PrettyConfig, de::from_reader};
 use tap::Tap;
 use super::structure::Config;
@@ -34,21 +34,13 @@ impl FileHandler {
 	/// * Failed to get the path to the config file.
 	/// * Failed to open the config file.
 	/// * Failed to deserialize the config file.
-	pub(crate) fn read(version: &str) -> Result<Config> {
+	pub(crate) fn read() -> Result<Option<Config>> {
 		let config_path = Self::get_config_file_path()?;
 
 		let config_file = fs::File::open(&config_path)
 			.with_context(|| format!("Failed to open the config file at: {config_path:?}"))?;
 
-		let config: Config = from_reader(config_file)
-			.with_context(|| {
-				warn!("Failed to parse previous config file.
-could it be from previous versions of the tool? (Current version: {version:?})
-Continuing with default config."); // No backward support as of yet.
-				format!("Failed to deserialize the config file at: {config_path:?}")
-			})?;
-
-		Ok(config)
+		Ok(from_reader(config_file).ok())
 	}
 
 	/// # Errors
