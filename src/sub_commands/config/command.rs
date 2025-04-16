@@ -40,7 +40,7 @@ impl Command {
 struct Wizard;
 impl Wizard {
 	fn run(global_options: &GlobalOptions) -> Result<Option<Config>> {
-		let GlobalOptions { is_verbose: _, config } = global_options;
+		let GlobalOptions { is_verbose: _, version, config } = global_options;
 
 		let theme = Command::get_theme();
 		info!("Welcome to the setup wizard 🧙");
@@ -71,7 +71,10 @@ impl Wizard {
 			},
 		};
 
-		Ok(Some(Config { orchestration }))
+		Ok(Some(Config {
+			version: version.clone(), // Always upgrade to the current version
+			orchestration
+		}))
 	}
 }
 

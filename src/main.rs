@@ -1,5 +1,5 @@
 #![warn(clippy::pedantic, clippy::nursery, clippy::perf, clippy::correctness)]
-// #![allow(unused, dead_code)] // Shaked-TODO: delete this
+// #![allow(unused, dead_code)]
 #![deny(unused_must_use)]
 
 pub mod top_command;
@@ -28,7 +28,6 @@ pub use top_command::GlobalOptions;
 
 use anyhow::Result;
 use log::{error, trace};
-use clap::Parser;
 use top_command::TopCommand;
 
 pub trait Run : Sized {
@@ -38,9 +37,8 @@ pub trait Run : Sized {
 }
 
 fn main() {
-	let commands = TopCommand::parse();
-	logger::init(commands.is_verbose);
-	let (global_options, command) = commands.into_split();
+	let (global_options, command) = TopCommand::parse();
+	logger::init(global_options.is_verbose);
 
 	trace!("Input - Command:\n{command:#?}");
 	trace!("Input - Global Options:\n{global_options:#?}");
