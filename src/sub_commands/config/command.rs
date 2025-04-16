@@ -4,7 +4,7 @@ use clap::Args;
 use log::info;
 use colored::Colorize;
 use dialoguer::{theme::{ColorfulTheme, Theme}, Input, MultiSelect, Select, Confirm, FuzzySelect};
-use hashbrown::{HashMap, HashSet};
+use hashbrown::{HashMap, hash_map::{Entry, OccupiedEntry}, HashSet};
 use strum::{EnumString, FromRepr, VariantNames};
 use super::{structure::{Config, OrchestrationType, Orchestration, Kubernetes}, file_handler::FileHandler};
 use crate::{Run, GlobalOptions};
@@ -46,8 +46,8 @@ impl Wizard {
 		Command::print_keybinds();
 
 		let theme = Command::get_theme();
-		let orchestration_type = Self::pick_orchestration_type(global_options, &theme)?;
-		let orchestration = Self::pick_orchestration(global_options, &theme, orchestration_type)?;
+		let orchestration_type = Self::pick_orch_type(global_options, &theme)?;
+		let orchestration = Self::pick_orch(global_options, &theme, orchestration_type)?;
 
 		Ok(Config {
 			version: global_options.version.clone(), // Always upgrade to the current version
@@ -55,7 +55,7 @@ impl Wizard {
 		})
 	}
 
-	fn pick_orchestration_type(global_options: &GlobalOptions, theme: &dyn Theme) -> Result<OrchestrationType> {
+	fn pick_orch_type(global_options: &GlobalOptions, theme: &dyn Theme) -> Result<OrchestrationType> {
 		let orchestration_index = Select::with_theme(theme)
 			.with_prompt("Pick orchestration")
 			.default(global_options.config.orchestration.variant as usize)
@@ -69,12 +69,12 @@ impl Wizard {
 		)
 	}
 
-	fn pick_orchestration(global_options: &GlobalOptions, theme: &dyn Theme, variant: OrchestrationType) -> Result<Orchestration> {
+	fn pick_orch(global_options: &GlobalOptions, theme: &dyn Theme, variant: OrchestrationType) -> Result<Orchestration> {
 		let result = match variant {
 			OrchestrationType::DockerCompose => Orchestration {
 				variant: OrchestrationType::DockerCompose,
 				kubernetes: global_options.config.orchestration.kubernetes.clone(),
-				aliases: Self::pick_orchestration_aliases(global_options, theme)?,
+				aliases: Self::pick_orch_aliases(global_options, theme)?,
 			},
 			OrchestrationType::Kubernetes => {
 				Orchestration {
@@ -84,14 +84,14 @@ impl Wizard {
 							name_space: Self::pick_kubernetes_name_space(global_options, theme)?,
 						}
 					),
-					aliases: Self::pick_orchestration_aliases(global_options, theme)?,
+					aliases: Self::pick_orch_aliases(global_options, theme)?,
 				}
 			},
 		};
 		Ok(result)
 	}
 
-	fn pick_orchestration_aliases(global_options: &GlobalOptions, theme: &dyn Theme) -> Result<HashMap<String, String>> {
+	fn pick_orch_aliases(global_options: &GlobalOptions, theme: &dyn Theme) -> Result<HashMap<String, String>> {
 		let is_editing = Confirm::with_theme(theme)
 			.with_prompt("Would you like to edit the orchestration aliases?")
 			.default(false)
@@ -109,10 +109,10 @@ impl Wizard {
 			#[derive(EnumString, FromRepr, VariantNames)]
 			#[repr(u8)]
 			enum Operations {
-				#[strum(serialize = "Add or modify existing aliases")]
-				AddOrModify,
-				#[strum(serialize = "Remove existing aliases")]
-				Remove,
+				#[strum(serialize = "Add/Modify/Remove specific container name")]
+				Modify,
+				#[strum(serialize = "❌ Remove multiple container names")]
+				MultiRemove,
 				#[strum(serialize = "Continue to other configurations")]
 				Quit,
 			}
@@ -129,16 +129,16 @@ impl Wizard {
 				.expect("dialoguer::prompts::select::Select insures only valid discriminant will be received");
 
 			match operation {
-				Operations::AddOrModify => Self::add_orchestration_aliases(theme, &mut reversed_aliases)?,
-				Operations::Remove => Self::remove_orchestration_aliases(theme, &mut reversed_aliases)?,
+				Operations::Modify => Self::select_orch_container_name(theme, &mut reversed_aliases)?,
+				Operations::MultiRemove => Self::multi_remove_orch_container_names(theme, &mut reversed_aliases)?,
 				Operations::Quit => return Ok(Self::get_restore_orch_aliases(reversed_aliases)),
 			}
 		}
 	}
 
-	fn add_orchestration_aliases(theme: &dyn Theme, reversed_aliases: &mut HashMap<String, HashSet<String>>) -> Result<()> {
+	fn select_orch_container_name(theme: &dyn Theme, reversed_aliases: &mut HashMap<String, HashSet<String>>) -> Result<()> {
 		let mut options = vec![
-			"🆕 Add new alias"
+			"🆕 Add new container name"
 		];
 		reversed_aliases
 			.keys()
@@ -146,7 +146,7 @@ impl Wizard {
 			.pipe(|iter| options.extend(iter));
 		
 		let selection = FuzzySelect::with_theme(theme)
-			.with_prompt(format!("Pick your alias to modify (Reminder: {} to quit)", Command::style_key("q")))
+			.with_prompt(format!("Pick the container name to modify (Reminder: {} to quit)", Command::style_key("q")))
 			.default(0)
 			.items(&options)
 			.report(false)
@@ -158,26 +158,111 @@ impl Wizard {
 
 		match selection {
 			0 => {
+				let new_container_name = Input::with_theme(theme)
+					.with_prompt("Pick new container name")
+					.report(false)
+					.interact_text()?;
+				let _ = reversed_aliases.try_insert(new_container_name, HashSet::default());
+			},
+			index => {
+				// SAFETY:
+				// The index that return from `FuzzySelect` should correspond
+				// to the index at `options`.
+				let container_name = String::from(*unsafe { options.get_unchecked(index) });
+				let Entry::Occupied(mut entry) = reversed_aliases.entry(container_name) else {
+					unreachable!("`container_name` must be in reversed_aliases");
+				};
+				let is_force_remove_container = Self::select_specific_orch_alias(theme, &mut entry)?;
+				if is_force_remove_container || entry.get().is_empty() {
+					entry.remove_entry();
+				}
+			},
+		}
+		Self::select_orch_container_name(theme, reversed_aliases)
+	}
+
+	/// # Returns
+	/// If true, the user wants chose to delete this entry.
+	fn select_specific_orch_alias<S>(theme: &dyn Theme, container: &mut OccupiedEntry<'_, String, HashSet<String>, S>) -> Result<bool> {
+		let mut options = vec![
+			"🆕 Add new alias to this container name",
+			"❌ Remove this container name and all of his aliases",
+			"❌ Remove multiple aliases",
+		];
+
+		container
+			.get()
+			.iter()
+			.map(|alias | -> &str { alias.as_ref() })
+			.pipe(|iter| options.extend(iter));
+		
+		let selection = FuzzySelect::with_theme(theme)
+			.with_prompt(format!("Pick the alias to modify (Reminder: {} to quit)", Command::style_key("q")))
+			.default(0)
+			.items(&options)
+			.report(false)
+			.interact_opt()?;
+
+		let Some(selection) = selection else {
+			return Ok(false);
+		};
+
+		match selection {
+			0 => {
 				let new_alias = Input::with_theme(theme)
 					.with_prompt("Pick new alias name")
 					.report(false)
 					.interact_text()?;
-				let _ = reversed_aliases.try_insert(new_alias, HashSet::default());
-				Self::add_orchestration_aliases(theme, reversed_aliases)
+				container.get_mut().insert(new_alias);
+				Self::select_specific_orch_alias(theme, container)
+			},
+			1 => {
+				Ok(true)
+			},
+			2 => {
+				Self::multi_remove_orch_alias(theme, container)?;
+				Self::select_specific_orch_alias(theme, container)
 			},
 			index => todo!(),
 		}
 	}
 
-	fn remove_orchestration_aliases(theme: &dyn Theme, reversed_aliases: &mut HashMap<String, HashSet<String>>) -> Result<()> {
-		let aliases = reversed_aliases
+	fn multi_remove_orch_alias<S>(theme: &dyn Theme, container: &mut OccupiedEntry<'_, String, HashSet<String>, S>) -> Result<()> {
+		let aliases = container
+			.get()
+			.iter()
+			.cloned()
+			.collect::<Vec<String>>();
+
+		let selections = MultiSelect::with_theme(theme)
+			.with_prompt(format!("Select which aliases to remove (Reminder: {} to quit)", Command::style_key("q")))
+			.items(&aliases)
+			.report(false)
+			.interact_opt()?;
+		let Some(selections) = selections else {
+			return Ok(());
+		};
+		
+		for index in selections {
+			// SAFETY:
+			// The indexes that return from `MultiSelect` should correspond
+			// to the indexes at `aliases`.
+			let alias = unsafe { aliases.get_unchecked(index) };
+			container.get_mut().remove(alias);
+		}
+
+		Ok(())
+	}
+
+	fn multi_remove_orch_container_names(theme: &dyn Theme, reversed_aliases: &mut HashMap<String, HashSet<String>>) -> Result<()> {
+		let container_names = reversed_aliases
 			.keys()
 			.cloned()
 			.collect::<Vec<String>>();
 		
 		let selections = MultiSelect::with_theme(theme)
-			.with_prompt(format!("Select which aliases to {} remove (Reminder: {} to quit)", "completely".bold(), Command::style_key("q")))
-			.items(&aliases)
+			.with_prompt(format!("Select which container names to {} remove (Reminder: {} to quit)", "completely".italic(), Command::style_key("q")))
+			.items(&container_names)
 			.report(false)
 			.interact_opt()?;
 		let Some(selections) = selections else {
@@ -187,18 +272,22 @@ impl Wizard {
 		for index in selections {
 			// SAFETY:
 			// The indexes that return from `MultiSelect` should correspond
-			// to the indexes at `aliases`.
-			let alias = unsafe { aliases.get_unchecked(index) };
-			reversed_aliases.remove(alias);
+			// to the indexes at `container_names`.
+			let container_name = unsafe { container_names.get_unchecked(index) };
+			reversed_aliases.remove(container_name);
 		}
 
 		Ok(())
 	}
 
+	/// Generate a mapping from container names to their aliases,
+	/// according to the current config.
 	fn get_reverse_orch_aliases(global_options: &GlobalOptions) -> HashMap<String, HashSet<String>> {
 		todo!()
 	}
 
+	/// Reverse a mapping from container names to their aliases,
+	/// back to the config format.
 	fn get_restore_orch_aliases(reversed_aliases: HashMap<String, HashSet<String>>) -> HashMap<String, String> {
 		todo!()
 	}
