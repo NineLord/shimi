@@ -18,6 +18,7 @@ pub mod sub_commands {
 		mod command;
 		pub use command::Command;
 		pub(super) mod process_status;
+		pub(super) mod execute;
 	}
 	pub mod config {
 		pub use command::Command;

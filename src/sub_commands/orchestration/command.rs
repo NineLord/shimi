@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use clap::{Args, Subcommand};
-use crate::{Run, GlobalOptions, sub_commands::config::{Config, OrchestrationType}};
+use crate::{Run, GlobalOptions, sub_commands::config::{Config, OrchestrationType}, utils::ExitError};
 use super::process_status;
 
 pub trait RunOrchestration : Sized {
@@ -29,13 +29,13 @@ Will be effective only when 'kubernetes' is the chosen orchestration."
 }
 
 #[derive(Debug)]
-pub struct GlobalOrchOptions<'a> {
-	config: &'a Config,
+pub struct GlobalOrchOptions<'cfg> {
+	config: &'cfg Config,
 	orchestration_type: Option<OrchestrationType>,
 	name_space: Option<String>,
 }
 
-impl GlobalOrchOptions<'_> {
+impl <'cfg> GlobalOrchOptions<'cfg> {
 	pub const fn get_orchestration_type(&self) -> OrchestrationType {
 		match self.orchestration_type {
 			Some(variant) => variant,
@@ -49,6 +49,16 @@ impl GlobalOrchOptions<'_> {
 			(None, Some(kubernetes)) => Ok(&kubernetes.name_space),
 			(None, None) => Err(anyhow!("Namespace wasn't set in the config nor given via optional argument")),
 		}
+	}
+
+	pub fn add_name_space<'args>(&'cfg self, arguments: &'args mut Vec<&'cfg str>) {
+		let name_space: &'cfg String = match self.get_name_space() {
+			Ok(name_space) => name_space,
+			Err(error) => ExitError::BadArgument.exit(error),
+		};
+
+		arguments.push("--namespace");
+		arguments.push(name_space);
 	}
 }
 

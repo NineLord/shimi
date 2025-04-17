@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Args, ArgAction::SetTrue};
 use super::command::{RunOrchestration, GlobalOrchOptions};
-use crate::{GlobalOptions, utils::{RunCommand, ExitError}, sub_commands::config::OrchestrationType};
+use crate::{GlobalOptions, utils::RunCommand, sub_commands::config::OrchestrationType};
 
 /// Shows the current state of your orchestration
 #[derive(Args, Debug)]
@@ -37,6 +37,7 @@ impl RunOrchestration for Arguments {
 			OrchestrationType::Kubernetes => {
 				let mut arguments = vec!["get", "pods"];
 				if self.is_names_only {
+					arguments.push("--no-headers");
 					arguments.push("--output");
 					arguments.push("custom-columns=NAME:.metadata.name");
 				}
@@ -44,17 +45,44 @@ impl RunOrchestration for Arguments {
 				if self.is_show_all {
 					arguments.push("--all-namespaces");
 				} else {
-					let name_space = match global_orch_options.get_name_space() {
-						Ok(name_space) => name_space,
-						Err(error) => ExitError::BadArgument.exit(error),
-					};
-
-					arguments.push("--namespace");
-					arguments.push(name_space);
+					global_orch_options.add_name_space(&mut arguments);
 				}
 
 				RunCommand::exec_with_args("oc", arguments)
 			},
 		}
+	}
+}
+
+impl Arguments {
+	pub fn get_container_names(global_orch_options: &GlobalOrchOptions, is_show_all: bool) -> Result<Vec<String>> {
+		let output = match global_orch_options.get_orchestration_type() {
+			OrchestrationType::DockerCompose => {
+				let mut arguments = vec!["container", "ls", "--format", "{{.Names}}"];
+				if is_show_all {
+					arguments.push("--all");
+				}
+				RunCommand::run_with_args_sync("docker", arguments)
+			},
+			OrchestrationType::Kubernetes => {
+				let mut arguments = vec!["get", "pods", "--no-headers", "--output", "custom-columns=NAME:.metadata.name"];
+
+				if is_show_all {
+					arguments.push("--all-namespaces");
+				} else {
+					global_orch_options.add_name_space(&mut arguments);
+				}
+
+				RunCommand::run_with_args_sync("oc", arguments)
+			},
+		}?;
+
+		let container_names = std::str::from_utf8(&output.stdout)?
+			.split('\n')
+			.filter(|container_name| !container_name.is_empty())
+			.map(String::from)
+			.collect::<Vec<String>>();
+		
+		Ok(container_names)
 	}
 }

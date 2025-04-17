@@ -75,13 +75,20 @@ impl RunCommand {
 	{
 		let mut command = Self::create_command(command, arguments);
 
-		if cfg!(feature = "dry_run") {
-			Ok(Output { status: ExitStatus::default(), stdout: vec![], stderr: vec![] })
+		let output = if cfg!(feature = "dry_run") {
+			Output { status: ExitStatus::default(), stdout: vec![], stderr: vec![] }
 		} else {
 			command
 				.output()
-				.context("Failed to run the given command")
+				.context("Failed to run the given command")?
+		};
+
+		if !output.status.success() {
+			ExitError::BadExitCode.exit(format!("Failed to run the command: {command:?}
+Returned with bad exit code: {output:?}"));
 		}
+
+		Ok(output)
 	}
 }
 
@@ -127,7 +134,11 @@ impl RunCommand {
 }
 
 pub enum ExitError {
+	/// The user didn't input the correct values.
 	BadArgument,
+	/// When running a external command and it returned with bad exit code.
+	BadExitCode,
+	/// Other reason.
 	Other,
 }
 impl ExitError {
@@ -135,7 +146,7 @@ impl ExitError {
 		error!("{message}");
 		match self {
 			Self::BadArgument => process::exit(2),
-			Self::Other => process::exit(1),
+			Self::Other | Self::BadExitCode => process::exit(1),
 		}
 	}
 }
