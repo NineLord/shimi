@@ -1,4 +1,7 @@
+use tap::prelude::*;
 use anyhow::{anyhow, Result};
+use log::trace;
+use super::process_status::Arguments as process_status;
 use crate::{utils::ExitError, sub_commands::config::{Config, OrchestrationType}};
 
 #[derive(Debug)]
@@ -45,5 +48,46 @@ impl <'cfg> GlobalOrchOptions<'cfg> {
 
 		arguments.push("--namespace");
 		arguments.push(name_space);
+	}
+}
+
+impl GlobalOrchOptions<'_> {
+	pub fn get_container_name(&self, input: &str) -> Result<Option<String>> {
+		#[derive(Debug)]
+		struct ContainerName {
+			original: String,
+			abbreviation: String,
+		}
+
+		let container_names = process_status::get_container_names(self, false)?
+			.into_iter()
+			.map(|container_name| ContainerName {
+				abbreviation: container_name.to_lowercase()
+					.tap_mut(|name| name.retain(char::is_alphanumeric)),
+				original: container_name,
+			})
+			.collect::<Vec<ContainerName>>()
+			.tap_mut(|container_names| container_names.sort_unstable_by(
+				|cn1, cn2| cn1.abbreviation.cmp(&cn2.abbreviation)
+			));
+		
+		trace!("get_container_name :: Sorted container names: {container_names:#?}");
+
+		let name = self.config.orchestration.aliases
+			.get(input)
+			.map_or(input, |alias| alias.as_ref())
+			.to_lowercase()
+			.tap_mut(|name| name.retain(char::is_alphanumeric));
+		
+		trace!("get_container_name :: Aliases name: {name:?}");
+
+		let result = container_names
+			.into_iter()
+			.find(|ContainerName { original: _, abbreviation }| abbreviation.contains(&name))
+			.map(|ContainerName { original, abbreviation: _ }| original);
+	
+		trace!("get_container_name :: Chosen container: {result:#?}");
+		
+		Ok(result)
 	}
 }
