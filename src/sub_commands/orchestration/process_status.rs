@@ -11,7 +11,6 @@ pub struct Arguments {
 	#[arg(long = "only-names", action = SetTrue)]
 	pub is_names_only: bool,
 
-	// / Show all containers/pods (default shows only running)
 	#[arg(short = 'a', long = "all", action = SetTrue,
 	help = "Show all containers/pods",
 	long_help = "Show all containers/pods.
@@ -77,11 +76,24 @@ impl Arguments {
 			},
 		}?;
 
-		let container_names = std::str::from_utf8(&output.stdout)?
-			.split('\n')
-			.filter(|container_name| !container_name.is_empty())
-			.map(String::from)
-			.collect::<Vec<String>>();
+		let container_names = if cfg!(feature = "dry_run") {
+			vec![
+				String::from("avatar"),
+				String::from("you_tube_2"),
+				String::from("path-of-exile-1"),
+				String::from("you_tube_1"),
+				String::from("last-epoch"),
+				String::from("you_tube_3"),
+				String::from("path-of-exile-2"),
+				String::from("spongebob"),
+			]
+		} else {
+			std::str::from_utf8(&output.stdout)?
+				.split('\n')
+				.filter(|container_name| !container_name.is_empty())
+				.map(String::from)
+				.collect::<Vec<String>>()
+		};
 		
 		Ok(container_names)
 	}

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use crate::{Run, GlobalOptions, sub_commands::config::OrchestrationType};
-use super::{global_orch_options::GlobalOrchOptions, process_status};
+use super::{global_orch_options::GlobalOrchOptions, process_status, execute};
 
 pub trait RunOrchestration : Sized {
 	/// # Errors
@@ -31,6 +31,7 @@ Will be effective only when 'kubernetes' is the chosen orchestration."
 #[derive(Subcommand, Debug)]
 pub enum CommandInner {
 	ProcessStatus(process_status::Arguments),
+	Execute(execute::Arguments),
 }
 
 impl Run for Command {
@@ -39,6 +40,7 @@ impl Run for Command {
 		let global_orch_options = GlobalOrchOptions::new(&global_options.config, orchestration_type, name_space);
 		match command {
 			CommandInner::ProcessStatus(command) => command.run_orch(global_options, &global_orch_options),
+			CommandInner::Execute(command) => command.run_orch(global_options, &global_orch_options),
 		}
 	}
 }
