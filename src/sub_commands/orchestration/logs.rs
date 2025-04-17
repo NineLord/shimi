@@ -1,35 +1,47 @@
 use anyhow::Result;
-use clap::Args;
+use clap::{Args, ArgAction::SetFalse};
 use super::{command::RunOrchestration, global_orch_options::GlobalOrchOptions};
 use crate::{GlobalOptions, utils::RunCommand, sub_commands::config::OrchestrationType};
 
-const DEFAULT_COMMAND: &str = "/bin/bash";
-
-/// Run a command in a running container
+/// Fetch the logs of a container
 #[derive(Args, Debug)]
-#[command(visible_aliases = ["x", "exec", "ent", "enter"])]
+#[command(visible_aliases = ["l", "log"])]
 pub struct Arguments {
-	/// The name of the container that going to execute the command
+	/// The name of the container that going to show his logs
 	pub container_name: String,
 
-	/// Overwrite the default command
-	#[arg(short, long, default_value = DEFAULT_COMMAND)]
-	pub command: String,
+	/// Do not follow log output
+	#[arg(long = "no-follow", action = SetFalse)]
+	pub follow: bool,
+
+	/// Number of lines to show from the end of the logs
+	#[arg(short, long)]
+	pub tail: Option<usize>,
+
 }
 
 impl RunOrchestration for Arguments {
 	fn run_orch(self, _global_options: &GlobalOptions, global_orch_options: &GlobalOrchOptions) -> Result<()> {
 		let container_name = global_orch_options.get_container_name(&self.container_name)?;
 
+		let mut arguments = vec!["logs", &container_name];
+		if self.follow {
+			arguments.push("--follow");
+		}
+
+		let tail = self.tail
+			.map(|num| num.to_string());
+		if let Some(tail) = &tail {
+			arguments.push("--tail");
+			arguments.push(tail);
+		}
+
 		match global_orch_options.get_orchestration_type() {
 			OrchestrationType::DockerCompose => {
-				RunCommand::exec_with_args("docker", ["exec", "--interactive", "--tty", &container_name, &self.command])
+				RunCommand::exec_with_args("docker", arguments)
 			},
 			OrchestrationType::Kubernetes => {
-				let mut arguments = vec!["exec", "--stdin", "--tty"];
 				global_orch_options.add_name_space(&mut arguments);
-				arguments.push(&container_name);
-				arguments.push(&self.command);
 				RunCommand::exec_with_args("oc", arguments)
 			},
 		}

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use crate::{Run, GlobalOptions, sub_commands::config::OrchestrationType};
-use super::{global_orch_options::GlobalOrchOptions, process_status, execute};
+use super::{global_orch_options::GlobalOrchOptions, process_status, execute, logs};
 
 pub trait RunOrchestration : Sized {
 	/// # Errors
@@ -13,7 +13,7 @@ pub trait RunOrchestration : Sized {
 #[derive(Args, Debug)]
 #[command(visible_aliases = ["orch", "d", "docker", "kub", "kubernetes"])]
 pub struct Command {
-	#[arg(short = 't', long = "type", global = true, value_enum,
+	#[arg(long = "type", global = true, value_enum,
 	help = "Overwrite the orchestration type taken from the config")]
 	pub orchestration_type: Option<OrchestrationType>,
 
@@ -32,6 +32,7 @@ Will be effective only when 'kubernetes' is the chosen orchestration."
 pub enum CommandInner {
 	ProcessStatus(process_status::Arguments),
 	Execute(execute::Arguments),
+	Logs(logs::Arguments),
 }
 
 impl Run for Command {
@@ -41,6 +42,7 @@ impl Run for Command {
 		match command {
 			CommandInner::ProcessStatus(command) => command.run_orch(global_options, &global_orch_options),
 			CommandInner::Execute(command) => command.run_orch(global_options, &global_orch_options),
+			CommandInner::Logs(command) => command.run_orch(global_options, &global_orch_options),
 		}
 	}
 }

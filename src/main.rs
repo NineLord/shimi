@@ -10,16 +10,19 @@ pub mod sub_commands {
 	pub mod git {
 		mod command;
 		pub use command::Command;
-		pub(super) mod ssh_key_gen;
-		pub(super) mod global_user_email;
-		pub(super) mod global_ignore;
+		
+		mod ssh_key_gen;
+		mod global_user_email;
+		mod global_ignore;
 	}
 	pub mod orchestration {
 		mod command;
 		pub use command::Command;
 		mod global_orch_options;
-		pub(super) mod process_status;
-		pub(super) mod execute;
+		
+		mod process_status;
+		mod execute;
+		mod logs;
 	}
 	pub mod config {
 		pub use command::Command;

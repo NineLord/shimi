@@ -9,6 +9,8 @@ instead of going over all of them each time running the config command.
 * [ ] Allow to user to overwrite default behaviors using the config, such as:
  * Default command at `s docker exec`.
  * By default `s docker ps` not showing all containers.
+ * By default `s docker logs` always follows.
+ * By default `s docker logs` shows all the logs (no `tail` turned on).
 * [ ] `clap` has feature for auto completions to commands.
 
 #### License
