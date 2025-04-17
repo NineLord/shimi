@@ -1,6 +1,7 @@
 use hashbrown::HashMap;
 use serde::{Serialize, Deserialize};
 use strum::{EnumString, FromRepr, VariantNames};
+use clap::ValueEnum;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -20,7 +21,7 @@ pub struct Kubernetes {
 	pub name_space: String,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, EnumString, FromRepr, VariantNames)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, EnumString, FromRepr, VariantNames, ValueEnum)]
 #[repr(u8)]
 pub enum OrchestrationType {
 	#[strum(serialize = "Docker-Compose")]

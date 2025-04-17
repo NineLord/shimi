@@ -1,6 +1,6 @@
-use std::{ffi::OsStr, os::unix::process::CommandExt, path::PathBuf, process::{Command, ExitStatus, Output}};
+use std::{process, fmt::Display, ffi::OsStr, os::unix::process::CommandExt, path::PathBuf, process::{Command, ExitStatus, Output}};
 use anyhow::{anyhow, Context, Result};
-use log::debug;
+use log::{debug, error};
 use email_address::EmailAddress;
 use xdg_home::home_dir;
 
@@ -23,7 +23,6 @@ pub fn is_valid_email(input: &str) -> Result<String> {
 }
 
 pub struct RunCommand;
-
 impl RunCommand {
 	/// # Errors
 	/// Might fail to spawn the process.
@@ -123,6 +122,20 @@ impl RunCommand {
 		} else {
 			Err(anyhow!(command.exec())
 				.context("Failed to run the given command"))
+		}
+	}
+}
+
+pub enum ExitError {
+	BadArgument,
+	Other,
+}
+impl ExitError {
+	pub fn exit(self, message: impl Display) -> ! {
+		error!("{message}");
+		match self {
+			Self::BadArgument => process::exit(2),
+			Self::Other => process::exit(1),
 		}
 	}
 }

@@ -5,7 +5,6 @@ use super::{global_ignore, global_user_email, ssh_key_gen};
 
 /// Includes sub-commands related to git.
 #[derive(Args, Debug)]
-#[command(visible_alias = "g")]
 pub struct Command {
 	#[command(subcommand)]
 	pub command: CommandInner,

@@ -14,9 +14,14 @@ pub mod sub_commands {
 		pub(super) mod global_user_email;
 		pub(super) mod global_ignore;
 	}
+	pub mod orchestration {
+		mod command;
+		pub use command::Command;
+		pub(super) mod process_status;
+	}
 	pub mod config {
 		pub use command::Command;
-		pub use structure::Config;
+		pub use structure::{Config, OrchestrationType};
 		pub(crate) use file_handler::FileHandler;
 
 		mod command;

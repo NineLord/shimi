@@ -88,6 +88,7 @@ Continuing with default config."); // No backward support as of yet.
 #[derive(Subcommand, Debug)]
 pub enum SubCommands {
 	Git(sub_commands::git::Command),
+	Orchestration(sub_commands::orchestration::Command),
 	Config(sub_commands::config::Command),
 }
 
@@ -95,6 +96,7 @@ impl Run for SubCommands {
 	fn run(self, global_options: &GlobalOptions) -> Result<()> {
 		match self {
 			Self::Git(command) => command.run(global_options),
+			Self::Orchestration(command) => command.run(global_options),
 			Self::Config(command) => command.run(global_options),
 		}
 	}
