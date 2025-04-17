@@ -52,7 +52,7 @@ impl <'cfg> GlobalOrchOptions<'cfg> {
 }
 
 impl GlobalOrchOptions<'_> {
-	pub fn get_container_name(&self, input: &str) -> Result<Option<String>> {
+	pub fn get_container_name(&self, input: &str) -> Result<String> {
 		#[derive(Debug)]
 		struct ContainerName {
 			original: String,
@@ -88,6 +88,10 @@ impl GlobalOrchOptions<'_> {
 	
 		trace!("get_container_name :: Chosen container: {result:#?}");
 		
+		let Some(result) = result else {
+			ExitError::BadArgument.exit(format!("Couldn't find container with the name {input:?} or alias for it"));
+		};
+
 		Ok(result)
 	}
 }
