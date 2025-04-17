@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{Args, ArgAction::SetTrue};
-use super::command::{RunOrchestration, GlobalOrchOptions};
+use super::{command::RunOrchestration, global_orch_options::GlobalOrchOptions};
 use crate::{GlobalOptions, utils::RunCommand, sub_commands::config::OrchestrationType};
 
 /// Shows the current state of your orchestration

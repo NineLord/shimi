@@ -1,7 +1,7 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use clap::{Args, Subcommand};
-use crate::{Run, GlobalOptions, sub_commands::config::{Config, OrchestrationType}, utils::ExitError};
-use super::process_status;
+use crate::{Run, GlobalOptions, sub_commands::config::OrchestrationType};
+use super::{global_orch_options::GlobalOrchOptions, process_status};
 
 pub trait RunOrchestration : Sized {
 	/// # Errors
@@ -28,40 +28,6 @@ Will be effective only when 'kubernetes' is the chosen orchestration."
 	pub command: CommandInner,
 }
 
-#[derive(Debug)]
-pub struct GlobalOrchOptions<'cfg> {
-	config: &'cfg Config,
-	orchestration_type: Option<OrchestrationType>,
-	name_space: Option<String>,
-}
-
-impl <'cfg> GlobalOrchOptions<'cfg> {
-	pub const fn get_orchestration_type(&self) -> OrchestrationType {
-		match self.orchestration_type {
-			Some(variant) => variant,
-			None => self.config.orchestration.variant,
-		}
-	}
-
-	pub fn get_name_space(&self) -> Result<&String> {
-		match (&self.name_space, &self.config.orchestration.kubernetes) {
-			(Some(name_space), _) => Ok(name_space),
-			(None, Some(kubernetes)) => Ok(&kubernetes.name_space),
-			(None, None) => Err(anyhow!("Namespace wasn't set in the config nor given via optional argument")),
-		}
-	}
-
-	pub fn add_name_space<'args>(&'cfg self, arguments: &'args mut Vec<&'cfg str>) {
-		let name_space: &'cfg String = match self.get_name_space() {
-			Ok(name_space) => name_space,
-			Err(error) => ExitError::BadArgument.exit(error),
-		};
-
-		arguments.push("--namespace");
-		arguments.push(name_space);
-	}
-}
-
 #[derive(Subcommand, Debug)]
 pub enum CommandInner {
 	ProcessStatus(process_status::Arguments),
@@ -70,11 +36,7 @@ pub enum CommandInner {
 impl Run for Command {
 	fn run(self, global_options: &GlobalOptions) -> Result<()> {
 		let Self { orchestration_type, name_space, command } = self;
-		let global_orch_options = GlobalOrchOptions {
-			config: &global_options.config,
-			orchestration_type,
-			name_space
-		};
+		let global_orch_options = GlobalOrchOptions::new(&global_options.config, orchestration_type, name_space);
 		match command {
 			CommandInner::ProcessStatus(command) => command.run_orch(global_options, &global_orch_options),
 		}

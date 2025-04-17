@@ -17,6 +17,7 @@ pub mod sub_commands {
 	pub mod orchestration {
 		mod command;
 		pub use command::Command;
+		mod global_orch_options;
 		pub(super) mod process_status;
 		pub(super) mod execute;
 	}
