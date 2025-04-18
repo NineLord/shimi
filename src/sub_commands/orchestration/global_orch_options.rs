@@ -1,7 +1,6 @@
 use tap::prelude::*;
 use anyhow::{anyhow, Result};
 use log::trace;
-use super::process_status;
 use crate::{utils::ExitError, GlobalOptions, sub_commands::config::OrchestrationType};
 
 #[derive(Debug)]
@@ -60,7 +59,7 @@ impl GlobalOrchOptions<'_> {
 			abbreviation: String,
 		}
 
-		let container_names = process_status::get_container_names(self, false)?
+		let container_names = self.get_container_names(false)?
 			.into_iter()
 			.map(|container_name| ContainerName {
 				abbreviation: container_name.to_lowercase()
