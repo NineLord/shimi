@@ -23,6 +23,7 @@ pub mod sub_commands {
 		mod process_status;
 		mod execute;
 		mod logs;
+		mod ip;
 	}
 	pub mod config {
 		pub use command::Command;

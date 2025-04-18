@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Args, ArgAction::SetTrue};
 use super::{command::RunOrchestration, global_orch_options::GlobalOrchOptions};
-use crate::{GlobalOptions, utils::RunCommand, sub_commands::config::OrchestrationType};
+use crate::{utils::RunCommand, sub_commands::config::OrchestrationType};
 
 /// Shows the current state of your orchestration
 #[derive(Args, Debug)]
@@ -20,8 +20,8 @@ In kubernetes it will include all namespaces.")]
 }
 
 impl RunOrchestration for Arguments {
-	fn run_orch(self, _global_options: &GlobalOptions, global_orch_options: &GlobalOrchOptions) -> Result<()> {
-		match global_orch_options.get_orchestration_type() {
+	fn run_orch(self, global_options: &GlobalOrchOptions) -> Result<()> {
+		match global_options.get_orchestration_type() {
 			OrchestrationType::DockerCompose => {
 				let mut arguments = if self.is_names_only {
 					vec!["container", "ls", "--format", "{{.Names}}"]
@@ -44,7 +44,7 @@ impl RunOrchestration for Arguments {
 				if self.is_show_all {
 					arguments.push("--all-namespaces");
 				} else {
-					global_orch_options.add_name_space(&mut arguments);
+					global_options.add_name_space(&mut arguments);
 				}
 
 				RunCommand::exec_with_args("oc", arguments)

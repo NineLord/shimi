@@ -1,12 +1,12 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use crate::{Run, GlobalOptions, sub_commands::config::OrchestrationType};
-use super::{global_orch_options::GlobalOrchOptions, process_status, execute, logs};
+use super::{global_orch_options::GlobalOrchOptions, process_status, execute, logs, ip};
 
 pub trait RunOrchestration : Sized {
 	/// # Errors
 	/// Should return an error with explanation why the command couldn't run.
-	fn run_orch(self, global_options: &GlobalOptions, global_orch_options: &GlobalOrchOptions) -> Result<()>;
+	fn run_orch(self, global_options: &GlobalOrchOptions) -> Result<()>;
 }
 
 /// Includes sub-commands related to docker/docker-compose/kubernetes.
@@ -33,16 +33,18 @@ pub enum CommandInner {
 	ProcessStatus(process_status::Arguments),
 	Execute(execute::Arguments),
 	Logs(logs::Arguments),
+	Ip(ip::Arguments),
 }
 
 impl Run for Command {
 	fn run(self, global_options: &GlobalOptions) -> Result<()> {
 		let Self { orchestration_type, name_space, command } = self;
-		let global_orch_options = GlobalOrchOptions::new(&global_options.config, orchestration_type, name_space);
+		let global_orch_options = GlobalOrchOptions::new(global_options, orchestration_type, name_space);
 		match command {
-			CommandInner::ProcessStatus(command) => command.run_orch(global_options, &global_orch_options),
-			CommandInner::Execute(command) => command.run_orch(global_options, &global_orch_options),
-			CommandInner::Logs(command) => command.run_orch(global_options, &global_orch_options),
+			CommandInner::ProcessStatus(command) => command.run_orch(&global_orch_options),
+			CommandInner::Execute(command) => command.run_orch(&global_orch_options),
+			CommandInner::Logs(command) => command.run_orch(&global_orch_options),
+			CommandInner::Ip(command) => command.run_orch(&global_orch_options),
 		}
 	}
 }

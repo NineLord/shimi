@@ -2,19 +2,19 @@ use tap::prelude::*;
 use anyhow::{anyhow, Result};
 use log::trace;
 use super::process_status::Arguments as process_status;
-use crate::{utils::ExitError, sub_commands::config::{Config, OrchestrationType}};
+use crate::{utils::ExitError, GlobalOptions, sub_commands::config::OrchestrationType};
 
 #[derive(Debug)]
 pub struct GlobalOrchOptions<'cfg> {
-	config: &'cfg Config,
+	global_options: &'cfg GlobalOptions,
 	orchestration_type: Option<OrchestrationType>,
 	name_space: Option<String>,
 }
 
 impl <'cfg> GlobalOrchOptions<'cfg> {
-	pub const fn new(config: &'cfg Config, orchestration_type: Option<OrchestrationType>, name_space: Option<String>) -> Self {
+	pub const fn new(global_options: &'cfg GlobalOptions, orchestration_type: Option<OrchestrationType>, name_space: Option<String>) -> Self {
 		Self {
-			config,
+			global_options,
 			orchestration_type,
 			name_space
 		}
@@ -25,7 +25,7 @@ impl GlobalOrchOptions<'_> {
 	pub const fn get_orchestration_type(&self) -> OrchestrationType {
 		match self.orchestration_type {
 			Some(variant) => variant,
-			None => self.config.orchestration.variant,
+			None => self.global_options.config.orchestration.variant,
 		}
 	}
 }
@@ -33,7 +33,7 @@ impl GlobalOrchOptions<'_> {
 
 impl <'cfg> GlobalOrchOptions<'cfg> {
 	pub fn get_name_space(&self) -> Result<&String> {
-		match (&self.name_space, &self.config.orchestration.kubernetes) {
+		match (&self.name_space, &self.global_options.config.orchestration.kubernetes) {
 			(Some(name_space), _) => Ok(name_space),
 			(None, Some(kubernetes)) => Ok(&kubernetes.name_space),
 			(None, None) => Err(anyhow!("Namespace wasn't set in the config nor given via optional argument")),
@@ -73,7 +73,7 @@ impl GlobalOrchOptions<'_> {
 		
 		trace!("get_container_name :: Sorted container names: {container_names:#?}");
 
-		let name = self.config.orchestration.aliases
+		let name = self.global_options.config.orchestration.aliases
 			.get(input)
 			.map_or(input, |alias| alias.as_ref())
 			.to_lowercase()
