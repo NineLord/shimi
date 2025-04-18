@@ -50,8 +50,40 @@ impl <'cfg> GlobalOrchOptions<'cfg> {
 	}
 }
 
+pub enum IsExactMatch {
+	/// Won't try to convert the `input` using aliases.
+	Yes,
+	/// If the `input` is alias, it will be converted.
+	No(IsTryGetMatch),
+}
+
+pub enum IsTryGetMatch {
+	/// Won't try to check the list of current existing containers
+	/// to find a matching container name.
+	No,
+	/// Will go through the list of current existing containers
+	/// to find a matching container name.
+	Yes {
+		/// If true, will exit the program if couldn't find a matching existing container.
+		is_must_match: bool,
+		/// If true, will **also** try to find a match in:
+		/// * `docker-compose` - The `stopped`/`killed` state containers.
+		/// * `kubernetes` - The other name spaces.
+		is_all_containers: bool,
+	},
+}
+
+impl Default for IsTryGetMatch {
+	fn default() -> Self {
+		Self::Yes { is_must_match: true, is_all_containers: false }
+	}
+}
+
 impl GlobalOrchOptions<'_> {
-	pub fn get_container_name(&self, input: &str) -> Result<String> {
+	/// # Params
+	/// * `input` - The name of the container, could be an alias or substring of the full container name.
+	/// * `options` - Additional settings.
+	pub fn get_container_name(&self, input: &str, options: IsExactMatch) -> Result<String> {
 		// Shaked-TODO: can optimize this to also separate the instance number of the container and analyze it
 		#[derive(Debug)]
 		struct ContainerName {

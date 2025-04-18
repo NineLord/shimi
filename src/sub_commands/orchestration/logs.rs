@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{Args, ArgAction::SetFalse};
-use super::{command::RunOrchestration, global_orch_options::GlobalOrchOptions};
+use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch}};
 use crate::{utils::RunCommand, sub_commands::config::OrchestrationType};
 
 /// Fetch the logs of a container
@@ -22,7 +22,15 @@ pub struct Arguments {
 
 impl RunOrchestration for Arguments {
 	fn run_orch(self, global_options: &GlobalOrchOptions) -> Result<()> {
-		let container_name = global_options.get_container_name(&self.container_name)?;
+		const IS_EXACT_MATCH: bool = false; // Shaked-TODO: receive it as optional argument
+		let container_name = {
+			let options = if IS_EXACT_MATCH {
+				IsExactMatch::Yes
+			} else {
+				IsExactMatch::No(IsTryGetMatch::default())
+			};
+			global_options.get_container_name(&self.container_name, options)?
+		};
 
 		let mut arguments = vec!["logs", &container_name];
 		if self.follow {

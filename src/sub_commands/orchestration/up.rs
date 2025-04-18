@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{Args, ArgAction::SetFalse};
-use super::{command::RunOrchestration, global_orch_options::GlobalOrchOptions};
+use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch}};
 use crate::{utils::RunCommand, sub_commands::config::OrchestrationType};
 
 /// Starts running container(s)
@@ -10,8 +10,6 @@ pub struct Arguments {
 	/// The name of the container that going to start running.
 	/// If not given, will start all the containers.
 	pub container_name: Option<String>,
-
-	// Shaked-TODO: add to all docker commands, "exact match" for container_name, to indicate it shouldn't go throw the alias system.
 
 	#[arg(short = 's', long = "only-start", action = SetFalse,
 	help = "Start a downed container instead of ALSO creating it",
@@ -30,14 +28,15 @@ impl RunOrchestration for Arguments {
 }
 
 pub fn start(global_options: &GlobalOrchOptions, container_name: &str, is_also_create: bool) -> Result<()> {
-	// Shaked-TODO: that's going to have some problems:
-	// 1. it should go through the alias system, if the `s d ps` didn't help,
-	// then it should return the alias system result instead of tell us it couldn't find the container.
-	// (because the container could be down).
-	// It should separate this case for docker-compose and kub, in kub there is no need to even check the `s d ps`.
-	// 2. It should try and get all the containers (even those that are down).
-	// There is no such case in kub state, do it only for docker-compose.
-	let container_name = global_options.get_container_name(container_name)?;
+	const IS_EXACT_MATCH: bool = false; // Shaked-TODO: receive it as optional argument
+	let container_name = {
+		let options = match (IS_EXACT_MATCH, global_options.get_orchestration_type()) {
+			(true, _) => IsExactMatch::Yes,
+			(false, OrchestrationType::DockerCompose) => IsExactMatch::No(IsTryGetMatch::Yes { is_must_match: false, is_all_containers: true }),
+			(false, OrchestrationType::Kubernetes) => IsExactMatch::No(IsTryGetMatch::No),
+		};
+		global_options.get_container_name(container_name, options)?
+	};
 
 	match global_options.get_orchestration_type() {
 		OrchestrationType::DockerCompose => {

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{Args, ArgAction::SetFalse};
-use super::{command::RunOrchestration, global_orch_options::GlobalOrchOptions};
+use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch}};
 use crate::{utils::RunCommand, sub_commands::config::OrchestrationType};
 
 /// Stop running container(s)
@@ -28,10 +28,19 @@ impl RunOrchestration for Arguments {
 }
 
 pub fn stop(global_options: &GlobalOrchOptions, container_name: &str, is_remove: bool) -> Result<()> {
-	// Shaked-TODO: that's going to have some problem:
-	// It should try and get all the containers (even those that are down).
-	// There is no such case in kub state, do it only for docker-compose.
-	let container_name = global_options.get_container_name(container_name)?;
+	const IS_EXACT_MATCH: bool = false; // Shaked-TODO: receive it as optional argument.
+	let container_name = {
+		let options = if IS_EXACT_MATCH {
+			IsExactMatch::Yes
+		} else {
+			let is_all_containers = match global_options.get_orchestration_type() {
+				OrchestrationType::DockerCompose => true,
+				OrchestrationType::Kubernetes => false,
+			};
+			IsExactMatch::No(IsTryGetMatch::Yes { is_must_match: true, is_all_containers })
+		};
+		global_options.get_container_name(container_name, options)?
+	};
 
 	match global_options.get_orchestration_type() {
 		OrchestrationType::DockerCompose => {
