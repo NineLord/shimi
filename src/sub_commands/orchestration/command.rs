@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use crate::{Run, GlobalOptions, sub_commands::config::OrchestrationType};
-use super::{global_orch_options::GlobalOrchOptions, process_status, execute, logs, ip};
+use super::{global_orch_options::GlobalOrchOptions, process_status, execute, logs, ip, port_forward, up, down, reset};
 
 pub trait RunOrchestration : Sized {
 	/// # Errors
@@ -34,6 +34,10 @@ pub enum CommandInner {
 	Execute(execute::Arguments),
 	Logs(logs::Arguments),
 	Ip(ip::Arguments),
+	PortForward(port_forward::Arguments),
+	Up(up::Arguments),
+	Down(down::Arguments),
+	Reset(reset::Arguments),
 }
 
 impl Run for Command {
@@ -45,6 +49,10 @@ impl Run for Command {
 			CommandInner::Execute(command) => command.run_orch(&global_orch_options),
 			CommandInner::Logs(command) => command.run_orch(&global_orch_options),
 			CommandInner::Ip(command) => command.run_orch(&global_orch_options),
+			CommandInner::PortForward(command) => command.run_orch(&global_orch_options),
+			CommandInner::Up(command) => command.run_orch(&global_orch_options),
+			CommandInner::Down(command) => command.run_orch(&global_orch_options),
+			CommandInner::Reset(command) => command.run_orch(&global_orch_options),
 		}
 	}
 }

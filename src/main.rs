@@ -24,6 +24,10 @@ pub mod sub_commands {
 		mod execute;
 		mod logs;
 		mod ip;
+		mod port_forward;
+		mod up;
+		mod down;
+		mod reset;
 	}
 	pub mod config {
 		pub use command::Command;

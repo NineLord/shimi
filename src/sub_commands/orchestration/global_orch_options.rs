@@ -1,7 +1,7 @@
 use tap::prelude::*;
 use anyhow::{anyhow, Result};
 use log::trace;
-use super::process_status::Arguments as process_status;
+use super::process_status;
 use crate::{utils::ExitError, GlobalOptions, sub_commands::config::OrchestrationType};
 
 #[derive(Debug)]
@@ -53,6 +53,7 @@ impl <'cfg> GlobalOrchOptions<'cfg> {
 
 impl GlobalOrchOptions<'_> {
 	pub fn get_container_name(&self, input: &str) -> Result<String> {
+		// Shaked-TODO: can optimize this to also separate the instance number of the container and analyze it
 		#[derive(Debug)]
 		struct ContainerName {
 			original: String,

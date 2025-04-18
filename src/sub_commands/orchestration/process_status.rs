@@ -53,48 +53,46 @@ impl RunOrchestration for Arguments {
 	}
 }
 
-impl Arguments {
-	pub fn get_container_names(global_orch_options: &GlobalOrchOptions, is_show_all: bool) -> Result<Vec<String>> {
-		let output = match global_orch_options.get_orchestration_type() {
-			OrchestrationType::DockerCompose => {
-				let mut arguments = vec!["container", "ls", "--format", "{{.Names}}"];
-				if is_show_all {
-					arguments.push("--all");
-				}
-				RunCommand::run_with_args_sync("docker", arguments)
-			},
-			OrchestrationType::Kubernetes => {
-				let mut arguments = vec!["get", "pods", "--no-headers", "--output", "custom-columns=NAME:.metadata.name"];
+pub fn get_container_names(global_orch_options: &GlobalOrchOptions, is_show_all: bool) -> Result<Vec<String>> {
+	let output = match global_orch_options.get_orchestration_type() {
+		OrchestrationType::DockerCompose => {
+			let mut arguments = vec!["container", "ls", "--format", "{{.Names}}"];
+			if is_show_all {
+				arguments.push("--all");
+			}
+			RunCommand::run_with_args_sync("docker", arguments)
+		},
+		OrchestrationType::Kubernetes => {
+			let mut arguments = vec!["get", "pods", "--no-headers", "--output", "custom-columns=NAME:.metadata.name"];
 
-				if is_show_all {
-					arguments.push("--all-namespaces");
-				} else {
-					global_orch_options.add_name_space(&mut arguments);
-				}
+			if is_show_all {
+				arguments.push("--all-namespaces");
+			} else {
+				global_orch_options.add_name_space(&mut arguments);
+			}
 
-				RunCommand::run_with_args_sync("oc", arguments)
-			},
-		}?;
+			RunCommand::run_with_args_sync("oc", arguments)
+		},
+	}?;
 
-		let container_names = if cfg!(feature = "dry_run") {
-			vec![
-				String::from("avatar"),
-				String::from("you_tube_2"),
-				String::from("path-of-exile-1"),
-				String::from("you_tube_1"),
-				String::from("last-epoch"),
-				String::from("you_tube_3"),
-				String::from("path-of-exile-2"),
-				String::from("spongebob"),
-			]
-		} else {
-			std::str::from_utf8(&output.stdout)?
-				.split('\n')
-				.filter(|container_name| !container_name.is_empty())
-				.map(String::from)
-				.collect::<Vec<String>>()
-		};
-		
-		Ok(container_names)
-	}
+	let container_names = if cfg!(feature = "dry_run") {
+		vec![
+			String::from("avatar"),
+			String::from("you_tube_2"),
+			String::from("path-of-exile-1"),
+			String::from("you_tube_1"),
+			String::from("last-epoch"),
+			String::from("you_tube_3"),
+			String::from("path-of-exile-2"),
+			String::from("spongebob"),
+		]
+	} else {
+		std::str::from_utf8(&output.stdout)?
+			.split('\n')
+			.filter(|container_name| !container_name.is_empty())
+			.map(String::from)
+			.collect::<Vec<String>>()
+	};
+	
+	Ok(container_names)
 }
