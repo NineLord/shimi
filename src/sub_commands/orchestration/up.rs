@@ -1,7 +1,8 @@
 use anyhow::Result;
 use clap::{Args, ArgAction::SetFalse};
-use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch}};
-use crate::{utils::RunCommand, sub_commands::config::OrchestrationType};
+use indexmap::indexset;
+use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch, MatchSource}};
+use crate::{sub_commands::config::OrchestrationType, utils::RunCommand};
 
 /// Starts running container(s)
 #[derive(Args, Debug)]
@@ -27,12 +28,16 @@ impl RunOrchestration for Arguments {
 	}
 }
 
+#[allow(clippy::items_after_statements, unreachable_code, unused)]
 pub fn start(global_options: &GlobalOrchOptions, container_name: &str, is_also_create: bool) -> Result<()> {
+	todo!();
 	const IS_EXACT_MATCH: bool = false; // Shaked-TODO: receive it as optional argument
 	let container_name = {
 		let options = match (IS_EXACT_MATCH, global_options.get_orchestration_type()) {
 			(true, _) => IsExactMatch::Yes,
-			(false, OrchestrationType::DockerCompose) => IsExactMatch::No(IsTryGetMatch::Yes { is_must_match: false, is_all_containers: true }),
+			(false, OrchestrationType::DockerCompose) => IsExactMatch::No(IsTryGetMatch::Yes(
+				indexset! {MatchSource::ExitingContainers { is_all_containers: true }, MatchSource::Config}
+			)),
 			(false, OrchestrationType::Kubernetes) => IsExactMatch::No(IsTryGetMatch::No),
 		};
 		global_options.get_container_name(container_name, options)?
@@ -54,7 +59,9 @@ pub fn start(global_options: &GlobalOrchOptions, container_name: &str, is_also_c
 	}
 }
 
+#[allow(clippy::items_after_statements, unreachable_code, unused)]
 pub fn start_all(global_options: &GlobalOrchOptions, _is_also_create: bool) -> Result<()> {
+	todo!();
 	match global_options.get_orchestration_type() {
 		OrchestrationType::DockerCompose => {
 			RunCommand::exec_with_args("docker", ["up"])

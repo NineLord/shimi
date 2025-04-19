@@ -11,7 +11,9 @@ pub struct Arguments {
 }
 
 impl RunOrchestration for Arguments {
+	#[allow(clippy::items_after_statements, unreachable_code, unused)]
 	fn run_orch(self, global_options: &GlobalOrchOptions) -> Result<()> {
+		todo!();
 		const IS_EXACT_MATCH: bool = false; // Shaked-TODO: receive it as optional argument
 		let container_name = {
 			let options = if IS_EXACT_MATCH {

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::{Args, ArgAction::SetFalse};
-use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch}};
+use indexmap::indexset;
+use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch, MatchSource}};
 use crate::{utils::RunCommand, sub_commands::config::OrchestrationType};
 
 /// Stop running container(s)
@@ -14,7 +15,9 @@ pub struct Arguments {
 	#[arg(long = "no-remove", action = SetFalse,
 	help = "Remove a container instead of stopping it",
 	long_help = "Remove a container instead of stopping it.
-Will be effective only when 'docker-compose' is the chosen orchestration.")]
+* `docker-compose` - If true, will do the equivalent to `docker remove` instead of `docker kill`.
+* `kubernetes` - If true, will reduce the deployment instead of of killing the pod (and the deployment might raise it back up).")]
+// Shaked-TODO: might have better `long_help` once I know the commands.
 	pub is_remove: bool,
 }
 
@@ -27,17 +30,20 @@ impl RunOrchestration for Arguments {
 	}
 }
 
+#[allow(clippy::items_after_statements, unreachable_code, unused)]
 pub fn stop(global_options: &GlobalOrchOptions, container_name: &str, is_remove: bool) -> Result<()> {
+	todo!();
 	const IS_EXACT_MATCH: bool = false; // Shaked-TODO: receive it as optional argument.
 	let container_name = {
 		let options = if IS_EXACT_MATCH {
 			IsExactMatch::Yes
 		} else {
-			let is_all_containers = match global_options.get_orchestration_type() {
-				OrchestrationType::DockerCompose => true,
-				OrchestrationType::Kubernetes => false,
+			let match_source = match (global_options.get_orchestration_type(), is_remove) {
+				(OrchestrationType::DockerCompose, _) => MatchSource::ExitingContainers{ is_all_containers: true },
+				(OrchestrationType::Kubernetes, false) => MatchSource::ExitingContainers{ is_all_containers: false },
+				(OrchestrationType::Kubernetes, true) => MatchSource::Config,
 			};
-			IsExactMatch::No(IsTryGetMatch::Yes { is_must_match: true, is_all_containers })
+			IsExactMatch::No(IsTryGetMatch::Yes(indexset! {match_source}))
 		};
 		global_options.get_container_name(container_name, options)?
 	};
@@ -58,7 +64,9 @@ pub fn stop(global_options: &GlobalOrchOptions, container_name: &str, is_remove:
 	}
 }
 
+#[allow(clippy::items_after_statements, unreachable_code, unused)]
 pub fn stop_all(global_options: &GlobalOrchOptions, _is_remove: bool) -> Result<()> {
+	todo!();
 	match global_options.get_orchestration_type() {
 		OrchestrationType::DockerCompose => {
 			RunCommand::exec_with_args("docker", ["up"])
