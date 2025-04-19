@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::{Args, ArgAction::SetFalse};
 use indexmap::indexset;
 use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch, MatchSource}};
-use crate::{sub_commands::config::OrchestrationType, utils::RunCommand};
+use crate::{sub_commands::config::OrchestrationType, utils::{ExitError, RunCommand}};
 
 /// Starts running container(s)
 #[derive(Args, Debug)]
@@ -21,7 +21,7 @@ Will be effective only when 'docker-compose' is the chosen orchestration.")]
 
 impl RunOrchestration for Arguments {
 	fn run_orch(self, global_options: &GlobalOrchOptions) -> Result<()> {
-		match &self.container_name {
+		match self.container_name {
 			Some(container_name) => start(global_options, container_name, self.is_also_create),
 			None => start_all(global_options, self.is_also_create),
 		}
@@ -29,14 +29,14 @@ impl RunOrchestration for Arguments {
 }
 
 #[allow(clippy::items_after_statements, unreachable_code, unused)]
-pub fn start(global_options: &GlobalOrchOptions, container_name: &str, is_also_create: bool) -> Result<()> {
-	todo!();
+pub fn start(global_options: &GlobalOrchOptions, container_name: String, is_also_create: bool) -> Result<()> {
+	ExitError::NotYetImplemented.exit("up::start");
 	const IS_EXACT_MATCH: bool = false; // Shaked-TODO: receive it as optional argument
 	let container_name = {
 		let options = match (IS_EXACT_MATCH, global_options.get_orchestration_type()) {
 			(true, _) => IsExactMatch::Yes,
 			(false, OrchestrationType::DockerCompose) => IsExactMatch::No(IsTryGetMatch::Yes(
-				indexset! {MatchSource::ExitingContainers { is_all_containers: true }, MatchSource::Config}
+				indexset! {MatchSource::ExitingContainers { is_all: true }, MatchSource::Config}
 			)),
 			(false, OrchestrationType::Kubernetes) => IsExactMatch::No(IsTryGetMatch::No),
 		};
@@ -61,7 +61,7 @@ pub fn start(global_options: &GlobalOrchOptions, container_name: &str, is_also_c
 
 #[allow(clippy::items_after_statements, unreachable_code, unused)]
 pub fn start_all(global_options: &GlobalOrchOptions, _is_also_create: bool) -> Result<()> {
-	todo!();
+	ExitError::NotYetImplemented.exit("up::start_all");
 	match global_options.get_orchestration_type() {
 		OrchestrationType::DockerCompose => {
 			RunCommand::exec_with_args("docker", ["up"])

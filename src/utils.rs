@@ -138,15 +138,21 @@ pub enum ExitError {
 	BadArgument,
 	/// When running a external command and it returned with bad exit code.
 	BadExitCode,
+	/// For work in progress sections.
+	NotYetImplemented,
 	/// Other reason.
 	Other,
 }
 impl ExitError {
 	pub fn exit(self, message: impl Display) -> ! {
-		error!("{message}");
+		if matches!(&self, &Self::NotYetImplemented) {
+			error!("Not yet implemented: {message}");
+		} else {
+			error!("{message}");
+		}
 		match self {
 			Self::BadArgument => process::exit(2),
-			Self::Other | Self::BadExitCode => process::exit(1),
+			Self::Other | Self::BadExitCode | Self::NotYetImplemented => process::exit(1),
 		}
 	}
 }

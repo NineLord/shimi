@@ -51,6 +51,8 @@ impl <'cfg> GlobalOrchOptions<'cfg> {
 	}
 }
 
+//#region get_container_name
+#[derive(Debug)]
 pub enum IsExactMatch {
 	/// Won't try to convert the `input` using aliases.
 	Yes,
@@ -58,6 +60,7 @@ pub enum IsExactMatch {
 	No(IsTryGetMatch),
 }
 
+#[derive(Debug)]
 pub enum IsTryGetMatch {
 	/// Won't try to find a matching container.
 	No,
@@ -70,14 +73,14 @@ pub enum IsTryGetMatch {
 	Yes(IndexSet<MatchSource>)
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum MatchSource {
 	/// Will try to find a match against existing containers.
 	ExitingContainers {
 		/// If true, will **also** try to find a match in:
 		/// * `docker-compose` - The `stopped`/`killed` state containers.
 		/// * `kubernetes` - The other name spaces.
-		is_all_containers: bool,
+		is_all: bool,
 	},
 	/// Will try to find a match against the config file:
 	/// * `docker-compose` - The `docker-compose.yml` file.
@@ -88,65 +91,110 @@ pub enum MatchSource {
 impl Default for IsTryGetMatch {
 	fn default() -> Self {
 		Self::Yes(indexset!{
-			MatchSource::ExitingContainers { is_all_containers: false }
+			MatchSource::ExitingContainers { is_all: false }
 		})
 	}
 }
 
 /*
 	// Shaked-TODO:
-	1. Update the docs aboves
-	2. impl this options, while ignore this specific one
-	3. disable up, down, reset, ip, port_forward commands.
 	4. Add exact match opt.
 	5. public first exe and test it.
 */
+
+#[derive(Debug)]
+struct ContainerName {
+	original: String,
+	abbreviation: String,
+}
 
 impl GlobalOrchOptions<'_> {
 	/// # Params
 	/// * `input` - The name of the container, could be an alias or substring of the full container name.
 	/// * `options` - Additional settings.
-	pub fn get_container_name(&self, input: &str, options: IsExactMatch) -> Result<String> {
+	pub fn get_container_name(&self, input: String, is_exact_match: IsExactMatch) -> Result<String> {
 		// Shaked-TODO: can optimize this to also separate the instance number of the container and analyze it
-		#[derive(Debug)]
-		struct ContainerName {
-			original: String,
-			abbreviation: String,
+		trace!("get_container_name :: Options: {is_exact_match:#?}");
+
+		let is_try_get_match = match is_exact_match {
+			IsExactMatch::Yes => {
+				trace!("get_container_name :: result={input:?}");
+				return Ok(input);
+			},
+			IsExactMatch::No(is_try_get_match) => is_try_get_match,
+		};
+
+		let sources = match is_try_get_match {
+			IsTryGetMatch::No => {
+				let result = self.convert_to_alias(input);
+				trace!("get_container_name :: result={result:?}");
+				return Ok(result);
+			},
+			IsTryGetMatch::Yes(sources) => sources,
+		};
+
+		let matching_alias = {
+			let alias = self.convert_to_alias(input.clone());
+			let result = Self::prepare_for_matching(&alias);
+			trace!("prepare_for_matching :: from {alias:?} to {result:?}");
+			result
+		};
+
+		for source in sources {
+			let result = source.to_container_names(self)?
+				.into_iter()
+				.find(|ContainerName { original: _, abbreviation }| abbreviation.contains(&matching_alias))
+				.map(|ContainerName { original, abbreviation: _ }| original);
+
+
+			if let Some(result) = result {
+				trace!("get_container_name :: result={result:?}");
+				return Ok(result);
+			}
 		}
 
-		let container_names = self.get_container_names(false)?
+		ExitError::BadArgument.exit(format!("Couldn't find container with the name {input:?} or alias for it"));
+	}
+
+	/// Convert the input to his alias, or defaults back to the input.
+	/// # Params
+	/// * `input` - The name that going to be converted.
+	fn convert_to_alias(&self, input: String) -> String {
+		let alias = self.global_options.config.orchestration.aliases.get(&input);
+		trace!("convert_to_alias :: from {input:?} to {alias:?}");
+		alias
+			.cloned()
+			.unwrap_or(input)
+	}
+
+	/// Convert the input to lowercase with only numbers.
+	/// # Params
+	/// * `input` - The name that going to be converted.
+	fn prepare_for_matching(input: &str) -> String {
+		input
+			.to_lowercase()
+			.tap_mut(|name| name.retain(char::is_alphanumeric))
+	}
+}
+
+impl MatchSource {
+	fn to_container_names(self, global_options: &GlobalOrchOptions) -> Result<Vec<ContainerName>> {
+		let container_names = match self {
+			Self::ExitingContainers { is_all } => global_options.get_container_names(is_all)?,
+			Self::Config => todo!("MatchSource::Config"),
+		}
 			.into_iter()
 			.map(|container_name| ContainerName {
-				abbreviation: container_name.to_lowercase()
-					.tap_mut(|name| name.retain(char::is_alphanumeric)),
+				abbreviation: GlobalOrchOptions::prepare_for_matching(&container_name),
 				original: container_name,
 			})
 			.collect::<Vec<ContainerName>>()
 			.tap_mut(|container_names| container_names.sort_unstable_by(
 				|cn1, cn2| cn1.abbreviation.cmp(&cn2.abbreviation)
 			));
-		
-		trace!("get_container_name :: Sorted container names: {container_names:#?}");
 
-		let name = self.global_options.config.orchestration.aliases
-			.get(input)
-			.map_or(input, |alias| alias.as_ref())
-			.to_lowercase()
-			.tap_mut(|name| name.retain(char::is_alphanumeric));
-		
-		trace!("get_container_name :: Aliases name: {name:?}");
-
-		let result = container_names
-			.into_iter()
-			.find(|ContainerName { original: _, abbreviation }| abbreviation.contains(&name))
-			.map(|ContainerName { original, abbreviation: _ }| original);
-	
-		trace!("get_container_name :: Chosen container: {result:#?}");
-		
-		let Some(result) = result else {
-			ExitError::BadArgument.exit(format!("Couldn't find container with the name {input:?} or alias for it"));
-		};
-
-		Ok(result)
+		trace!("MatchSource::to_container_names :: source={self:?} ; container_names={container_names:#?}");
+		Ok(container_names)
 	}
 }
+//#endregion

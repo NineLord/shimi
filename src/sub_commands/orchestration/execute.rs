@@ -26,7 +26,7 @@ impl RunOrchestration for Arguments {
 			} else {
 				IsExactMatch::No(IsTryGetMatch::default())
 			};
-			global_options.get_container_name(&self.container_name, options)?
+			global_options.get_container_name(self.container_name, options)?
 		};
 
 		match global_options.get_orchestration_type() {

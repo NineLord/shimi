@@ -54,11 +54,11 @@ impl RunOrchestration for Arguments {
 }
 
 impl GlobalOrchOptions<'_> {
-	pub fn get_container_names(&self, is_show_all: bool) -> Result<Vec<String>> {
+	pub fn get_container_names(&self, is_all: bool) -> Result<Vec<String>> {
 		let output = match self.get_orchestration_type() {
 			OrchestrationType::DockerCompose => {
 				let mut arguments = vec!["container", "ls", "--format", "{{.Names}}"];
-				if is_show_all {
+				if is_all {
 					arguments.push("--all");
 				}
 				RunCommand::run_with_args_sync("docker", arguments)
@@ -66,7 +66,7 @@ impl GlobalOrchOptions<'_> {
 			OrchestrationType::Kubernetes => {
 				let mut arguments = vec!["get", "pods", "--no-headers", "--output", "custom-columns=NAME:.metadata.name"];
 	
-				if is_show_all {
+				if is_all {
 					arguments.push("--all-namespaces");
 				} else {
 					self.add_name_space(&mut arguments);

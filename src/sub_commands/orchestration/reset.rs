@@ -19,8 +19,8 @@ Will be effective only when 'docker-compose' is the chosen orchestration.")]
 
 impl RunOrchestration for Arguments {
 	fn run_orch(self, global_options: &GlobalOrchOptions) -> Result<()> {
-		if let Some(container_name) = &self.container_name {
-			down::stop(global_options, container_name, self.is_remove)?;
+		if let Some(container_name) = self.container_name {
+			down::stop(global_options, container_name.clone(), self.is_remove)?;
 			up::start(global_options, container_name, self.is_remove)
 		} else {
 			down::stop_all(global_options, self.is_remove)?;
