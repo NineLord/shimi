@@ -62,7 +62,7 @@ pub fn stop(global_options: &GlobalOrchOptions, container_name: String, is_exact
 			}
 		},
 		OrchestrationType::Kubernetes => {
-			let mut arguments = vec!["TODO", &container_name];
+			let mut arguments = vec!["no idea", &container_name];
 			global_options.add_name_space(&mut arguments);
 			RunCommand::exec_with_args("oc", arguments)
 		},
@@ -77,7 +77,7 @@ pub fn stop_all(global_options: &GlobalOrchOptions, _is_remove: bool) -> Result<
 			RunCommand::exec_with_args("docker", ["up"])
 		},
 		OrchestrationType::Kubernetes => {
-			let mut arguments = vec!["TODO"];
+			let mut arguments = vec!["no idea"];
 			global_options.add_name_space(&mut arguments);
 			RunCommand::exec_with_args("oc", arguments)
 		},

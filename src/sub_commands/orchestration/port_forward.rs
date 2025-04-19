@@ -36,10 +36,10 @@ impl RunOrchestration for Arguments {
 
 		match global_options.get_orchestration_type() {
 			OrchestrationType::DockerCompose => {
-				RunCommand::exec_with_args("docker", ["TODO", &container_name])
+				RunCommand::exec_with_args("docker", ["no idea", &container_name])
 			},
 			OrchestrationType::Kubernetes => {
-				let mut arguments = vec!["TODO", &container_name];
+				let mut arguments = vec!["no idea", &container_name];
 				global_options.add_name_space(&mut arguments);
 				RunCommand::exec_with_args("oc", arguments)
 			},

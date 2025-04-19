@@ -32,12 +32,12 @@ impl RunOrchestration for Arguments {
 				RunCommand::run_with_args_sync("docker", ["inspect", &container_name])
 			},
 			OrchestrationType::Kubernetes => {
-				let mut arguments = vec!["TODO", &container_name];
+				let mut arguments = vec!["no idea", &container_name];
 				global_options.add_name_space(&mut arguments);
 				RunCommand::run_with_args_sync("oc", arguments)
 			},
 		}?;
 
-		todo!("Either parse the given output or display it right away with exec instead of run_sync")
+		// Either parse the given output or display it right away with exec instead of run_sync
 	}
 }

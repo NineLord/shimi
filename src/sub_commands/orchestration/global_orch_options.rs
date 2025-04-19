@@ -96,12 +96,6 @@ impl Default for IsTryGetMatch {
 	}
 }
 
-/*
-	// Shaked-TODO:
-	4. Add exact match opt.
-	5. public first exe and test it.
-*/
-
 #[derive(Debug)]
 struct ContainerName {
 	original: String,
