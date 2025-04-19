@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{Args, ArgAction::SetFalse};
+use clap::{Args, ArgAction::{SetFalse, SetTrue}};
 use indexmap::indexset;
 use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch, MatchSource}};
 use crate::{sub_commands::config::OrchestrationType, utils::{ExitError, RunCommand}};
@@ -17,25 +17,30 @@ pub struct Arguments {
 	long_help = "Remove a container instead of stopping it.
 * `docker-compose` - If true, will do the equivalent to `docker remove` instead of `docker kill`.
 * `kubernetes` - If true, will reduce the deployment instead of of killing the pod (and the deployment might raise it back up).")]
-// Shaked-TODO: might have better `long_help` once I know the commands.
+	// Shaked-TODO: might have better `long_help` once I know the commands.
 	pub is_remove: bool,
+
+	/// If true, won't try to convert the container name to his alias.
+	/// Will be effective only when `CONTAINER_NAME` is given.
+	// Shaked-TODO: maybe can ArgGroups with `container_name`?
+	#[arg(short = 'e', long = "exact-match", action = SetTrue)]
+	pub is_exact_match: bool,
 }
 
 impl RunOrchestration for Arguments {
 	fn run_orch(self, global_options: &GlobalOrchOptions) -> Result<()> {
 		match self.container_name {
-			Some(container_name) => stop(global_options, container_name, self.is_remove),
+			Some(container_name) => stop(global_options, container_name, self.is_exact_match, self.is_remove),
 			None => stop_all(global_options, self.is_remove),
 		}
 	}
 }
 
 #[allow(clippy::items_after_statements, unreachable_code, unused)]
-pub fn stop(global_options: &GlobalOrchOptions, container_name: String, is_remove: bool) -> Result<()> {
+pub fn stop(global_options: &GlobalOrchOptions, container_name: String, is_exact_match: bool, is_remove: bool) -> Result<()> {
 	ExitError::NotYetImplemented.exit("down::stop");
-	const IS_EXACT_MATCH: bool = false; // Shaked-TODO: receive it as optional argument.
 	let container_name = {
-		let options = if IS_EXACT_MATCH {
+		let options = if is_exact_match {
 			IsExactMatch::Yes
 		} else {
 			let match_source = match (global_options.get_orchestration_type(), is_remove) {

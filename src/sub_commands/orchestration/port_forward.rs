@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::Args;
+use clap::{Args, ArgAction::SetTrue};
 use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch}};
 use crate::{sub_commands::config::OrchestrationType, utils::{ExitError, RunCommand}};
 
@@ -15,15 +15,18 @@ pub struct Arguments {
 
 	/// The port that going to be opened on your local machine.
 	pub to: usize,
+
+	/// If true, won't try to convert the container name to his alias.
+	#[arg(short = 'e', long = "exact-match", action = SetTrue)]
+	pub is_exact_match: bool,
 }
 
 impl RunOrchestration for Arguments {
 	#[allow(clippy::items_after_statements, unreachable_code, unused)]
 	fn run_orch(self, global_options: &GlobalOrchOptions) -> Result<()> {
 		ExitError::NotYetImplemented.exit("port_forward::run_orch");
-		const IS_EXACT_MATCH: bool = false; // Shaked-TODO: receive it as optional argument
 		let container_name = {
-			let options = if IS_EXACT_MATCH {
+			let options = if self.is_exact_match {
 				IsExactMatch::Yes
 			} else {
 				IsExactMatch::No(IsTryGetMatch::default())

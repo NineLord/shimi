@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{Args, ArgAction::SetFalse};
+use clap::{Args, ArgAction::{SetFalse, SetTrue}};
 use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch}};
 use crate::{utils::RunCommand, sub_commands::config::OrchestrationType};
 
@@ -18,13 +18,16 @@ pub struct Arguments {
 	#[arg(short, long)]
 	pub tail: Option<usize>,
 
+	/// If true, won't try to convert the container name to his alias.
+	#[arg(short = 'e', long = "exact-match", action = SetTrue)]
+	pub is_exact_match: bool,
+
 }
 
 impl RunOrchestration for Arguments {
 	fn run_orch(self, global_options: &GlobalOrchOptions) -> Result<()> {
-		const IS_EXACT_MATCH: bool = false; // Shaked-TODO: receive it as optional argument
 		let container_name = {
-			let options = if IS_EXACT_MATCH {
+			let options = if self.is_exact_match {
 				IsExactMatch::Yes
 			} else {
 				IsExactMatch::No(IsTryGetMatch::default())
