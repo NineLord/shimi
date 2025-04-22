@@ -1,6 +1,6 @@
 use std::{time::{SystemTime, UNIX_EPOCH}, fs, path::{Path, PathBuf}};
 use anyhow::{Context, Result};
-use log::info;
+use log::{warn, info};
 use ron::{ser::PrettyConfig, de::from_reader};
 use tap::Tap;
 use super::structure::Config;
@@ -52,7 +52,7 @@ impl FileHandler {
 		if !cfg!(feature = "dry_run") {
 			if global_options.is_fail_to_parse_config {
 				let prev_config_path = Self::backup_prev_config(&config_path)?;
-				info!("Previous config file was backed up due to failure to parse it at: {prev_config_path:?}");
+				warn!("Previous config file was backed up due to failure to parse it at: {prev_config_path:?}");
 			}
 
 			let config_file = fs::OpenOptions::new()

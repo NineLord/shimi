@@ -157,6 +157,7 @@ impl GlobalOrchOptions<'_> {
 		let alias = self.global_options.config.orchestration.aliases.get(&input);
 		trace!("convert_to_alias :: from {input:?} to {alias:?}");
 		alias
+			.map(|container_alias| &container_alias.name)
 			.cloned()
 			.unwrap_or(input)
 	}

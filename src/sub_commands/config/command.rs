@@ -1,12 +1,15 @@
+use std::fmt::Display;
 use tap::prelude::*;
 use anyhow::Result;
 use clap::Args;
 use log::{info, warn};
+use time::PrimitiveDateTime;
 use colored::Colorize;
 use dialoguer::{theme::{ColorfulTheme, Theme}, Input, MultiSelect, Select, Confirm, FuzzySelect};
+use lazy_static::lazy_static;
 use hashbrown::{HashMap, hash_map::{Entry, OccupiedEntry}, HashSet};
 use strum::{EnumString, FromRepr, VariantNames};
-use super::{structure::{Config, OrchestrationType, Orchestration, Kubernetes}, file_handler::FileHandler};
+use super::{structure::{Config, OrchestrationType, Orchestration, Kubernetes, Alias, ContainerName}, file_handler::FileHandler};
 use crate::{Run, GlobalOptions};
 
 #[derive(Args, Debug)]
@@ -36,6 +39,33 @@ impl Command {
 
 	fn get_theme() -> ColorfulTheme {
 		ColorfulTheme::default()
+	}
+}
+
+
+lazy_static! {
+    static ref CONTAINER_ALIAS_DATE_FORMAT: Vec<time::format_description::BorrowedFormatItem<'static>> = {
+        time::format_description::parse("[day]/[month]/[year repr:last_two] [hour]:[minute]").unwrap()
+    };
+}
+type ContainerNameRaw = String;
+
+#[derive(Debug, Hash, PartialEq, Eq)]
+struct ContainerAlias {
+	pub name: Alias,
+	pub ttl: Option<PrimitiveDateTime>
+}
+
+impl Display for ContainerAlias {
+	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match &self.ttl {
+            // Some(ttl) => write!(formatter, "{} (TTL: {})", self.name, ttl),
+			Some(ttl) => write!(formatter, "{} (TTL: {})",
+				self.name,
+                ttl.format(&CONTAINER_ALIAS_DATE_FORMAT).unwrap()
+            ),
+            None => write!(formatter, "{}", self.name),
+        }
 	}
 }
 
@@ -96,7 +126,7 @@ impl Wizard {
 		Ok(result)
 	}
 
-	fn pick_orch_aliases(global_options: &GlobalOptions, theme: &dyn Theme) -> Result<HashMap<String, String>> {
+	fn pick_orch_aliases(global_options: &GlobalOptions, theme: &dyn Theme) -> Result<HashMap<Alias, ContainerName>> {
 		let is_editing = Confirm::with_theme(theme)
 			.with_prompt("Would you like to edit the orchestration aliases?")
 			.default(false)
@@ -141,7 +171,7 @@ impl Wizard {
 		}
 	}
 
-	fn select_orch_container_name(theme: &dyn Theme, reversed_aliases: &mut HashMap<String, HashSet<String>>) -> Result<()> {
+	fn select_orch_container_name(theme: &dyn Theme, reversed_aliases: &mut HashMap<ContainerNameRaw, HashSet<ContainerAlias>>) -> Result<()> {
 		let mut options = vec![
 			"🆕 Add new container name",
 			"Go back",
@@ -188,24 +218,25 @@ impl Wizard {
 
 	/// # Returns
 	/// If true, the user wants chose to delete this entry.
-	fn select_specific_orch_alias<S>(theme: &dyn Theme, container: &mut OccupiedEntry<'_, String, HashSet<String>, S>) -> Result<bool> {
-		let mut options = vec![
+	fn select_specific_orch_alias<S>(theme: &dyn Theme, container: &mut OccupiedEntry<'_, ContainerNameRaw, HashSet<ContainerAlias>, S>) -> Result<bool> {
+		const OPTIONS: [&str; 4] = [
 			"🆕 Add new alias to this container name",
 			"❌ Remove this container name and all of his aliases",
 			"❌ Remove multiple aliases",
 			"Go Back",
 		];
+		// let mut dyn_options = vec![];
 
-		container
+		let dyn_options = container
 			.get()
 			.iter()
-			.map(|alias | -> &str { alias.as_ref() })
-			.pipe(|iter| options.extend(iter));
+			.collect::<Vec<&ContainerAlias>>();
 
 		let selection = FuzzySelect::with_theme(theme)
 			.with_prompt(format!("Pick the alias to modify (for container name: {:?})", container.key()))
 			.default(0)
-			.items(&options)
+			.items(&OPTIONS)
+			.items(&dyn_options)
 			.report(false)
 			.interact()?;
 
@@ -215,26 +246,29 @@ impl Wizard {
 					.with_prompt("Pick new alias name")
 					.report(false)
 					.interact_text()?;
-				container.get_mut().insert(new_alias);
+				container.get_mut().insert(ContainerAlias { name: new_alias, ttl: Some(time::macros::datetime!(1994-10-25 15:00)) }); // Shaked-TODO: now
 				Self::select_specific_orch_alias(theme, container)
 			},
 			1 => {
 				Ok(true)
 			},
 			2 => {
-				Self::multi_remove_orch_alias(theme, container)?;
-				Self::select_specific_orch_alias(theme, container)
+				todo!()
+				// Self::multi_remove_orch_alias(theme, container)?;
+				// Self::select_specific_orch_alias(theme, container)
 			},
 			3 => {
 				Ok(false)
 			},
 			index => {
+				todo!()
+				// index = index - OPTIONS.len();
 				// SAFETY:
 				// The index that return from `FuzzySelect` should correspond
-				// to the index at `options`.
-				let alias = String::from(*unsafe { options.get_unchecked(index) });
-				Self::modify_specific_orch_alias(theme, &alias, container.get_mut())?;
-				Self::select_specific_orch_alias(theme, container)
+				// to the index at `dyn_options`.
+				// let alias = String::from(*unsafe { dyn_options.get_unchecked(index) });
+				// Self::modify_specific_orch_alias(theme, &alias, container.get_mut())?;
+				// Self::select_specific_orch_alias(theme, container)
 			},
 		}
 	}
@@ -309,7 +343,7 @@ impl Wizard {
 		Ok(())
 	}
 
-	fn multi_remove_orch_container_names(theme: &dyn Theme, reversed_aliases: &mut HashMap<String, HashSet<String>>) -> Result<()> {
+	fn multi_remove_orch_container_names(theme: &dyn Theme, reversed_aliases: &mut HashMap<ContainerNameRaw, HashSet<ContainerAlias>>) -> Result<()> {
 		let container_names = reversed_aliases
 			.keys()
 			.cloned()
@@ -337,30 +371,30 @@ impl Wizard {
 
 	/// Generate a mapping from container names to their aliases,
 	/// according to the current config.
-	fn get_reverse_orch_aliases(aliases: &HashMap<String, String>) -> HashMap<String, HashSet<String>> {
+	fn get_reverse_orch_aliases(aliases: &HashMap<Alias, ContainerName>) -> HashMap<ContainerNameRaw, HashSet<ContainerAlias>> {
 		aliases
 			.iter()
 			.map(|(alias, container_name)| (alias.clone(), container_name.clone()))
-			.fold(HashMap::new(), |mut result, (alias, container_name)| {
-				result.entry(container_name).or_default().insert(alias);
+			.fold(HashMap::new(), |mut result, (alias, ContainerName { name: container_name, ttl })| {
+				result.entry(container_name).or_default().insert(ContainerAlias { name: alias, ttl });
 				result
 			})
 	}
 
 	/// Reverse a mapping from container names to their aliases,
 	/// back to the config format.
-	fn get_restore_orch_aliases(reversed_aliases: HashMap<String, HashSet<String>>) -> HashMap<String, String> {
+	fn get_restore_orch_aliases(reversed_aliases: HashMap<ContainerNameRaw, HashSet<ContainerAlias>>) -> HashMap<Alias, ContainerName> {
 		reversed_aliases
 			.into_iter()
 			.fold(HashMap::new(), |mut result, (container_name, aliases)| {
-				for alias in aliases {
+				for ContainerAlias { name: alias, ttl } in aliases {
 					match result.entry(alias) {
 						Entry::Vacant(entry) => {
-							entry.insert(container_name.clone());
+							entry.insert(ContainerName { name: container_name.clone(), ttl });
 						},
 						Entry::Occupied(entry) => {
 							warn!("The alias {0:?} points to two different container names: {1:?} and {2:?} ; Ignoring: {2:?}",
-								entry.key(), entry.get(), container_name);
+								entry.key(), entry.get(), ContainerName { name: container_name.clone(), ttl });
 						},
 					}
 				}
