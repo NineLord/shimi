@@ -33,7 +33,12 @@ pub mod sub_commands {
 		mod command;
 		pub use command::Command;
 
-		mod prompter;
+		mod prompts {
+			mod prompter;
+			mod fuzzy_select;
+			mod select;
+			mod input;
+		}
 
 		mod file_handler;
 		pub(crate) use file_handler::FileHandler;

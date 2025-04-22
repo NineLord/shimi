@@ -1,0 +1,15 @@
+pub(super) const RETURN: &str = "↩ Return to previous menu";
+
+pub struct Prompter<Theme: dialoguer::theme::Theme> {
+	pub(super) theme: Theme
+}
+
+//#region Constructor
+impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
+	pub const fn new(theme: Theme) -> Self {
+		Self {
+			theme
+		}
+	}
+}
+//#endregion

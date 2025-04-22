@@ -1,23 +1,7 @@
 use anyhow::Result;
-use dialoguer::{FuzzySelect, Select};
+use dialoguer::FuzzySelect;
+use super::prompter::{Prompter, RETURN};
 
-const RETURN: &str = "↩ Return to previous menu";
-
-pub struct Prompter<Theme: dialoguer::theme::Theme> {
-	theme: Theme
-}
-
-//#region Constructor
-impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
-	pub const fn new(theme: Theme) -> Self {
-		Self {
-			theme
-		}
-	}
-}
-//#endregion
-
-//#region FuzzySelect
 pub struct FuzzyItems<'a, T: ToString, F: ToString> {
 	prefix: &'a [T],
 	dynamic: Option<Vec<F>>,
@@ -54,6 +38,7 @@ impl FuzzySelection {
 
 	/// # Panics
 	/// * If `Self::Dynamic` is chosen but there is no `dynamic` in `Items`.
+	/// * If `is_allow_return` is false while the index chose be of Return.
 	fn to_usize<T: ToString, F: ToString>(self, items: &FuzzyItems<T, F>) -> usize {
 		match self {
 			Self::Prefix(index) => index,
@@ -87,59 +72,3 @@ impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
 		Ok(FuzzySelection::form_usize(fuzzy_select.interact()?, items))
 	}
 }
-//#endregion
-
-//#region Select
-pub struct Items<'a, T: ToString> {
-	prefix: &'a [T],
-	is_allow_return: bool,
-}
-
-#[derive(Clone, Copy)]
-pub enum Selection {
-	Prefix(usize),
-	Return,
-}
-
-impl Selection {
-	fn form_usize<T: ToString>(index: usize, items: &Items<T>) -> Self {
-		let Items { prefix, is_allow_return } = items;
-
-		if index < prefix.len() {
-			return Self::Prefix(index);
-		}
-
-		debug_assert!(is_allow_return);
-		debug_assert_eq!(index - prefix.len(), 0);
-		Self::Return
-	}
-
-	/// # Panics
-	/// * If `Self::Dynamic` is chosen but there is no `dynamic` in `Items`.
-	fn to_usize<T: ToString>(self, items: &Items<T>) -> usize {
-		match self {
-			Self::Prefix(index) => index,
-			Self::Return => {
-				debug_assert!(items.is_allow_return);
-				items.prefix.len()
-			},
-		}
-	}
-}
-
-impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
-	pub fn select<Prompt: Into<String>, T: ToString>(&self, prompt: Prompt, select: Selection, items: &Items<T>) -> Result<Selection> {
-		let Items { prefix, is_allow_return: _ } = items;
-		let mut select = Select::with_theme(&self.theme)
-			.with_prompt(prompt)
-			.report(false)
-			.default(select.to_usize(items))
-			.items(prefix);
-		if items.is_allow_return {
-			select = select.item(RETURN);
-		}
-
-		Ok(Selection::form_usize(select.interact()?, items))
-	}
-}
-//#endregion
