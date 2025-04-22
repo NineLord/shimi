@@ -42,7 +42,6 @@ impl Command {
 	}
 }
 
-
 lazy_static! {
     static ref CONTAINER_ALIAS_DATE_FORMAT: Vec<time::format_description::BorrowedFormatItem<'static>> = {
         time::format_description::parse("[day]/[month]/[year repr:last_two] [hour]:[minute]").unwrap()

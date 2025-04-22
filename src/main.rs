@@ -30,13 +30,16 @@ pub mod sub_commands {
 		mod reset;
 	}
 	pub mod config {
+		mod command;
 		pub use command::Command;
-		pub use structure::{Config, OrchestrationType};
+
+		mod prompter;
+
+		mod file_handler;
 		pub(crate) use file_handler::FileHandler;
 
-		mod command;
-		mod file_handler;
 		mod structure;
+		pub use structure::{Config, OrchestrationType};
 	}
 }
 pub use top_command::GlobalOptions;
