@@ -9,7 +9,11 @@ use dialoguer::{theme::{ColorfulTheme, Theme}, Input, MultiSelect, Select, Confi
 use lazy_static::lazy_static;
 use hashbrown::{HashMap, hash_map::{Entry, OccupiedEntry}, HashSet};
 use strum::{EnumString, FromRepr, VariantNames};
-use super::{structure::{Config, OrchestrationType, Orchestration, Kubernetes, Alias, ContainerName}, file_handler::FileHandler, prompts::{self, prompter::{Prompter, from_repr}}};
+use super::{
+	structure::{Config, OrchestrationType, Orchestration, Kubernetes, Alias, ContainerName},
+	file_handler::FileHandler,
+	prompts::{prompter::{Prompter, from_repr}, fuzzy_select::{FuzzyItems, FuzzySelection}, select::Selection}
+};
 use crate::{Run, GlobalOptions};
 
 #[derive(Args, Debug)]
@@ -68,53 +72,79 @@ impl Display for ContainerAlias {
 	}
 }
 
-struct Wizard2<Theme: dialoguer::theme::Theme> {
-	prompter: Prompter<Theme>
+struct Wizard2<'cfg, Theme: dialoguer::theme::Theme> {
+	prompter: Prompter<Theme>,
+	global_options: &'cfg GlobalOptions,
+	config: Config,
 }
 
-impl <Theme: dialoguer::theme::Theme> Wizard2<Theme> {
-	pub const fn new(theme: Theme) -> Self {
+impl <'cfg, Theme: dialoguer::theme::Theme> Wizard2<'cfg, Theme> {
+	pub fn new(global_options: &'cfg GlobalOptions, theme: Theme) -> Self {
 		Self {
-			prompter: Prompter::new(theme)
+			prompter: Prompter::new(theme),
+			global_options,
+			config: Config {
+				version: global_options.version.clone(),
+				orchestration: global_options.config.orchestration.clone(),
+			}
 		}
 	}
 }
 
-impl <Theme: dialoguer::theme::Theme> Wizard2<Theme> {
-	fn run(global_options: &GlobalOptions) -> Result<Config> {
+impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
+	fn run(self) -> Result<Option<Config>> {
+		let result = if self.menu_1(FuzzySelection::Dynamic1(0))? {
+			Some(self.config)
+		} else {
+			None
+		};
+		Ok(result)
+	}
+}
+
+impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
+	fn menu_1(&self, mut select: FuzzySelection) -> Result<bool> {
+		let orchestration = vec![format!("Orchestration: {:?}", self.global_options.config.orchestration.variant)];
+
+		#[allow(clippy::items_after_statements)]
+		#[derive(EnumString, FromRepr, VariantNames)]
+		#[repr(u8)]
+		enum Prefix {
+			#[strum(serialize = "Container/pods alias")]
+			Containers,
+			#[strum(serialize = "💾 Save and quit")]
+			SaveAndQuit,
+			#[strum(serialize = "🚫 Quit without saving")]
+			Quit,
+		}
+
+		loop {
+			let items = FuzzyItems::with_dynamic_1(&orchestration, Prefix::VARIANTS, false);
+			let selected = self.prompter.fuzzy_select("Choose a setting to edit", select, &items)?;
+			match selected {
+				FuzzySelection::Dynamic1(0) => self.menu_2(Selection::Prefix(0))?,
+				FuzzySelection::Prefix(index) => {
+					match from_repr!(Prefix, index) {
+						Prefix::Containers => self.menu_4(FuzzySelection::Prefix(0))?,
+						Prefix::SaveAndQuit => return Ok(true),
+						Prefix::Quit => return Ok(false),
+					}
+				},
+				FuzzySelection::Dynamic1(_) => unreachable!("orchestration has only one item"),
+				FuzzySelection::Dynamic2(_) | FuzzySelection::Return => unreachable!("Didn't pass Dynamic2 or Return"),
+			}
+			select = selected;
+		}
+	}
+}
+
+impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
+	fn menu_2(&self, mut select: Selection) -> Result<()> {
 		todo!()
 	}
 
-	fn menu_1(&self, select: usize) -> Result<()> {
-		use prompts::fuzzy_select::{FuzzySelection, FuzzyItems};
-		const OPTIONS: [&str; 4] = [
-			"Orchestration: Docker-Compose",
-			"Container/pods alias",
-			"💾 Save and quit",
-			"🚫 Quit without saving",
-		];
-
-		/*#[derive(EnumString, FromRepr, VariantNames)]
-		#[repr(u8)]
-		enum Operations {
-			#[strum(serialize = "Add/Modify/Remove specific container name")]
-			Orchestration,
-			#[strum(serialize = "❌ Remove multiple container names")]
-			MultiRemove,
-			#[strum(serialize = "Continue to other configurations")]
-			Quit,
-		}*/
-
-		let items = FuzzyItems::new(&OPTIONS, false);
-		match self.prompter.fuzzy_select("Choose a setting to edit", FuzzySelection::Prefix(select), &items)? {
-			FuzzySelection::Prefix(0) => todo!(),
-			FuzzySelection::Prefix(1) => todo!(),
-			FuzzySelection::Prefix(2) => todo!(),
-			FuzzySelection::Prefix(3) => todo!(),
-			FuzzySelection::Prefix(_) => todo!(),
-			FuzzySelection::Dynamic(_) | FuzzySelection::Return => unreachable!("Didn't pass to FuzzyItems dynamic or return options"),
-		}
-		Ok(())
+	fn menu_4(&self, mut select: FuzzySelection) -> Result<()> {
+		todo!()
 	}
 }
 
@@ -464,8 +494,9 @@ impl Wizard {
 
 impl Run for Command {
 	fn run(self, global_options: &GlobalOptions) -> Result<()> {
-		let config = Wizard::run(global_options)?;
-		FileHandler::save(&config, global_options)?;
+		if let Some(config) = Wizard2::new(global_options, Self::get_theme()).run()? {
+			FileHandler::save(&config, global_options)?;
+		}
 		Ok(())
 	}
 }
