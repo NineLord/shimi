@@ -35,9 +35,11 @@ pub mod sub_commands {
 
 		mod prompts {
 			mod prompter;
+			mod multi_select;
 			mod fuzzy_select;
 			mod select;
 			mod input;
+			mod confirm;
 		}
 
 		mod file_handler;
