@@ -8,6 +8,26 @@ pub struct FuzzyItems<'a, T: ToString, F: ToString> {
 	is_allow_return: bool,
 }
 
+impl <'a, T: ToString> FuzzyItems<'a, T, String> {
+	pub const fn new(prefix: &'a [T], is_allow_return: bool) -> Self {
+		Self {
+			prefix,
+			dynamic: None,
+			is_allow_return,
+		}
+	}
+}
+
+impl <'a, T: ToString, F: ToString> FuzzyItems<'a, T, F> {
+	pub const fn with_dynamic(prefix: &'a [T], dynamic: Vec<F>, is_allow_return: bool) -> Self {
+		Self {
+			prefix,
+			dynamic: Some(dynamic),
+			is_allow_return,
+		}
+	}
+}
+
 #[derive(Clone, Copy)]
 pub enum FuzzySelection {
 	Prefix(usize),

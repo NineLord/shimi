@@ -34,12 +34,12 @@ pub mod sub_commands {
 		pub use command::Command;
 
 		mod prompts {
-			mod prompter;
-			mod multi_select;
-			mod fuzzy_select;
-			mod select;
-			mod input;
-			mod confirm;
+			pub(super) mod prompter;
+			pub(super) mod multi_select;
+			pub(super) mod fuzzy_select;
+			pub(super) mod select;
+			pub(super) mod input;
+			pub(super) mod confirm;
 		}
 
 		mod file_handler;

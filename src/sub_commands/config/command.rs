@@ -9,7 +9,7 @@ use dialoguer::{theme::{ColorfulTheme, Theme}, Input, MultiSelect, Select, Confi
 use lazy_static::lazy_static;
 use hashbrown::{HashMap, hash_map::{Entry, OccupiedEntry}, HashSet};
 use strum::{EnumString, FromRepr, VariantNames};
-use super::{structure::{Config, OrchestrationType, Orchestration, Kubernetes, Alias, ContainerName}, file_handler::FileHandler};
+use super::{structure::{Config, OrchestrationType, Orchestration, Kubernetes, Alias, ContainerName}, file_handler::FileHandler, prompts::{self, prompter::{Prompter, from_repr}}};
 use crate::{Run, GlobalOptions};
 
 #[derive(Args, Debug)]
@@ -65,6 +65,56 @@ impl Display for ContainerAlias {
             ),
             None => write!(formatter, "{}", self.name),
         }
+	}
+}
+
+struct Wizard2<Theme: dialoguer::theme::Theme> {
+	prompter: Prompter<Theme>
+}
+
+impl <Theme: dialoguer::theme::Theme> Wizard2<Theme> {
+	pub const fn new(theme: Theme) -> Self {
+		Self {
+			prompter: Prompter::new(theme)
+		}
+	}
+}
+
+impl <Theme: dialoguer::theme::Theme> Wizard2<Theme> {
+	fn run(global_options: &GlobalOptions) -> Result<Config> {
+		todo!()
+	}
+
+	fn menu_1(&self, select: usize) -> Result<()> {
+		use prompts::fuzzy_select::{FuzzySelection, FuzzyItems};
+		const OPTIONS: [&str; 4] = [
+			"Orchestration: Docker-Compose",
+			"Container/pods alias",
+			"💾 Save and quit",
+			"🚫 Quit without saving",
+		];
+
+		/*#[derive(EnumString, FromRepr, VariantNames)]
+		#[repr(u8)]
+		enum Operations {
+			#[strum(serialize = "Add/Modify/Remove specific container name")]
+			Orchestration,
+			#[strum(serialize = "❌ Remove multiple container names")]
+			MultiRemove,
+			#[strum(serialize = "Continue to other configurations")]
+			Quit,
+		}*/
+
+		let items = FuzzyItems::new(&OPTIONS, false);
+		match self.prompter.fuzzy_select("Choose a setting to edit", FuzzySelection::Prefix(select), &items)? {
+			FuzzySelection::Prefix(0) => todo!(),
+			FuzzySelection::Prefix(1) => todo!(),
+			FuzzySelection::Prefix(2) => todo!(),
+			FuzzySelection::Prefix(3) => todo!(),
+			FuzzySelection::Prefix(_) => todo!(),
+			FuzzySelection::Dynamic(_) | FuzzySelection::Return => unreachable!("Didn't pass to FuzzyItems dynamic or return options"),
+		}
+		Ok(())
 	}
 }
 
@@ -157,10 +207,7 @@ impl Wizard {
 				.items(Operations::VARIANTS)
 				.report(false)
 				.interact()?;
-			let operation_index = u8::try_from(operation_index)
-				.expect("Could fail only if Operations has more than u8::MAX variants");
-			let operation = Operations::from_repr(operation_index)
-				.expect("dialoguer::prompts::select::Select insures only valid discriminant will be received");
+			let operation = from_repr!(Operations, operation_index);
 
 			match operation {
 				Operations::Modify => Self::select_orch_container_name(theme, &mut reversed_aliases)?,
