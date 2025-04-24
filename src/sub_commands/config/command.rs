@@ -12,7 +12,7 @@ use strum::{EnumString, FromRepr, VariantNames};
 use super::{
 	structure::{Config, OrchestrationType, Orchestration, Kubernetes, Alias, ContainerName},
 	file_handler::FileHandler,
-	prompts::{prompter::{Prompter, from_repr}, fuzzy_select::{FuzzyItems, FuzzySelection}, select::Selection}
+	prompts::{prompter::{Prompter, from_repr, Item, Items, Options, Selection, SelectionReturn}}
 };
 use crate::{Run, GlobalOptions};
 
@@ -93,7 +93,7 @@ impl <'cfg, Theme: dialoguer::theme::Theme> Wizard2<'cfg, Theme> {
 
 impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 	fn run(self) -> Result<Option<Config>> {
-		let result = if self.menu_1(FuzzySelection::Dynamic1(0))? {
+		let result = if self.menu_1(Selection::default())? {
 			Some(self.config)
 		} else {
 			None
@@ -103,9 +103,7 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 }
 
 impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
-	fn menu_1(&self, mut select: FuzzySelection) -> Result<bool> {
-		let orchestration = vec![format!("Orchestration: {:?}", self.global_options.config.orchestration.variant)];
-
+	fn menu_1(&self, mut select: Selection) -> Result<bool> {
 		#[allow(clippy::items_after_statements)]
 		#[derive(EnumString, FromRepr, VariantNames)]
 		#[repr(u8)]
@@ -118,22 +116,22 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 			Quit,
 		}
 
-		loop {
-			let items = FuzzyItems::with_dynamic_1(&orchestration, Prefix::VARIANTS, false);
-			let selected = self.prompter.fuzzy_select("Choose a setting to edit", select, &items)?;
-			match selected {
-				FuzzySelection::Dynamic1(0) => self.menu_2(Selection::Prefix(0))?,
-				FuzzySelection::Prefix(index) => {
-					match from_repr!(Prefix, index) {
-						Prefix::Containers => self.menu_4(FuzzySelection::Prefix(0))?,
-						Prefix::SaveAndQuit => return Ok(true),
-						Prefix::Quit => return Ok(false),
-					}
+		loop {			
+			let options = vec![
+				Options::Item(Item::String(format!("Orchestration: {:?}", self.global_options.config.orchestration.variant)), true),
+				Options::Items(Items::StrRefs(Prefix::VARIANTS), None),
+			];
+			let Selection { vec_index, options_index } = self.prompter.fuzzy_select("Choose a setting to edit", &options)?;
+			match vec_index {
+				0 => self.menu_2(Selection { vec_index: 0, options_index: 0 })?,
+				1 => match from_repr!(Prefix, options_index) {
+					Prefix::Containers => self.menu_4(Selection { vec_index: 0, options_index: 0 })?,
+					Prefix::SaveAndQuit => return Ok(true),
+					Prefix::Quit => return Ok(false),
 				},
-				FuzzySelection::Dynamic1(_) => unreachable!("orchestration has only one item"),
-				FuzzySelection::Dynamic2(_) | FuzzySelection::Return => unreachable!("Didn't pass Dynamic2 or Return"),
+				_ => unreachable!("options has only 2 elements")
 			}
-			select = selected;
+			// select = selected; // TODO: fix this and `options` above need to relay on `select`
 		}
 	}
 }
@@ -143,7 +141,7 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 		todo!()
 	}
 
-	fn menu_4(&self, mut select: FuzzySelection) -> Result<()> {
+	fn menu_4(&self, mut select: Selection) -> Result<()> {
 		todo!()
 	}
 }
