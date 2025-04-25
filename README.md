@@ -3,7 +3,16 @@
 A Script of common things a developer might need.  
 It contains commands that are too inconvenient to type every time, or just hard to remember.
 
-### TODOs
+## Road Map
+1. Finish adding TTL aliases.
+2. Implement `s d ip`/`s d port-forward`.
+3. Implement `s d up`/`s d down`/`s d reset`, require loading `docker-compose`/`kubernetes` config files.
+4. Allow overwriting default behaviors and saving them to the config file.
+5. Allow adding custom commands.
+6. Generate auto-completion file during compilation.
+7. Continue to other commands . . .
+
+## TODOs
 * [ ] Changing the config wizard to manually editing specific settings  
 instead of going over all of them each time running the config command.
 * [ ] Allow to user to overwrite default behaviors using the config, such as:
