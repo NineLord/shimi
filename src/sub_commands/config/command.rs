@@ -5,14 +5,14 @@ use clap::Args;
 use log::{info, warn};
 use time::PrimitiveDateTime;
 use colored::Colorize;
-use dialoguer::{theme::{ColorfulTheme, Theme}, Input, MultiSelect, Select, Confirm, FuzzySelect};
+use dialoguer::{theme::{ColorfulTheme, Theme}, Input as InputTemp, MultiSelect, Select, Confirm, FuzzySelect};
 use lazy_static::lazy_static;
 use hashbrown::{HashMap, hash_map::{Entry, OccupiedEntry}, HashSet};
 use strum::{EnumString, FromRepr, VariantNames};
 use super::{
 	structure::{Config, OrchestrationType, Orchestration, Kubernetes, Alias, ContainerName},
 	file_handler::FileHandler,
-	prompts::{prompter::Prompter, selection::{Options, Selection, SelectionReturn, from_repr}}
+	prompts::{prompter::Prompter, selection::{Options, Selection, SelectionReturn, from_repr}, input::Input}
 };
 use crate::{Run, GlobalOptions};
 
@@ -93,7 +93,7 @@ impl <'cfg, Theme: dialoguer::theme::Theme> Wizard2<'cfg, Theme> {
 
 impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 	fn run(mut self) -> Result<Option<Config>> {
-		let result = if self.menu_1(Selection::default())? {
+		let result = if self.menu_1_select_category(Selection::default())? {
 			Some(self.config)
 		} else {
 			None
@@ -103,7 +103,7 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 }
 
 impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
-	fn menu_1(&mut self, mut select: Selection) -> Result<bool> {
+	fn menu_1_select_category(&mut self, mut select: Selection) -> Result<bool> {
 		#[derive(EnumString, FromRepr, VariantNames)]
 		#[repr(u8)]
 		enum Prefix {
@@ -116,15 +116,15 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 		}
 
 		loop {
-			let options = Options::with_capacity(2)
+			let mut options = Options::with_capacity(2)
 				.insert_string(format!("Orchestration: {:?}", self.config.orchestration.variant))
 				.insert_str_refs(Prefix::VARIANTS)
 				.set_selection(&select);
-			let selected = self.prompter.fuzzy_select("Choose a setting to edit", options)?;
+			let selected = self.prompter.fuzzy_select("Choose a setting to edit", &options)?;
 			match selected.vec_index {
-				0 => self.menu_2(SelectionReturn::default())?,
+				0 => self.menu_2_set_orch(SelectionReturn::default())?,
 				1 => match from_repr!(Prefix, selected.options_index) {
-					Prefix::Containers => self.menu_4(Selection::default())?,
+					Prefix::Containers => self.menu_4_edit_containers(Selection::default())?,
 					Prefix::SaveAndQuit => return Ok(true),
 					Prefix::Quit => return Ok(false),
 				},
@@ -133,10 +133,8 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 			select = selected;
 		}
 	}
-}
 
-impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
-	fn menu_2(&mut self, select: SelectionReturn) -> Result<()> {
+	fn menu_2_set_orch(&mut self, mut select: SelectionReturn) -> Result<()> {
 		macro_rules! add_check_mark {
 			($prefix:literal, $variant:expr, $expected:pat $(if $guard:expr)? $(,)?) => ({
 				let check_mark = if matches!($variant, $expected) {
@@ -148,27 +146,55 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 			});
 		}
 
-		let options = Options::with_capacity(3)
+		let mut options = Options::with_capacity(3)
 			.insert_string(add_check_mark!("🐋 Docker-Compose", self.config.orchestration.variant, OrchestrationType::DockerCompose))
 			.insert_string(add_check_mark!("☸️  Kubernetes", self.config.orchestration.variant, OrchestrationType::Kubernetes))
 			.insert_return()
 			.set_selection(&select);
 
-		let selected = self.prompter.select_with_return("Choose orchestration", options)?;
-		match selected {
-			SelectionReturn::Selection(Selection { vec_index: 0, options_index: _ }) => self.config.orchestration.variant = OrchestrationType::DockerCompose,
-			SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ }) => {
-				// TODO: go to menu_3
-				self.config.orchestration.variant = OrchestrationType::Kubernetes;
-			},
-			SelectionReturn::Return => (),
-			SelectionReturn::Selection(Selection { vec_index: _, options_index: _ }) => unreachable!("There are only two options currently"),
+		loop {
+			let selected = self.prompter.select_with_return("Choose orchestration", &options)?;
+			match selected {
+				SelectionReturn::Selection(Selection { vec_index: 0, options_index: _ }) => {
+					self.config.orchestration.variant = OrchestrationType::DockerCompose;
+					break;
+				},
+				SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ }) => {
+					if self.menu_3_set_kub_name_space()? {
+						self.config.orchestration.variant = OrchestrationType::Kubernetes;
+						break;
+					}
+				},
+				SelectionReturn::Return => break,
+				SelectionReturn::Selection(Selection { vec_index: _, options_index: _ }) => unreachable!("There are only two options currently"),
+			}
+			// select = selected;
 		}
 
 		Ok(())
 	}
 
-	fn menu_4(&self, mut select: Selection) -> Result<()> {
+	fn menu_3_set_kub_name_space(&mut self) -> Result<bool> {
+		// let y: Option<&str> = self.config.orchestration.kubernetes.and_then(|kub| Some(kub.name_space.as_ref()));
+		let previous_name_space: Option<&str> = match &self.config.orchestration.kubernetes {
+			Some(Kubernetes { name_space }) => Some(name_space.as_ref()),
+			None => None,
+		};
+		let input = self.prompter.input(
+			"Choose name space (leave empty to not select Kubernetes)",
+			previous_name_space
+		)?;
+		let result = match input {
+			Input::NoneEmpty(name_space) => {
+				self.config.orchestration.kubernetes = Some(Kubernetes { name_space });
+				true
+			},
+			Input::Empty => false,
+		};
+		Ok(result)
+	}
+
+	fn menu_4_edit_containers(&mut self, mut select: Selection) -> Result<()> {
 		todo!()
 	}
 }
@@ -291,7 +317,7 @@ impl Wizard {
 
 		match selection {
 			0 => {
-				let new_container_name = Input::with_theme(theme)
+				let new_container_name = InputTemp::with_theme(theme)
 					.with_prompt("Pick new container name")
 					.report(false)
 					.interact_text()?;
@@ -343,7 +369,7 @@ impl Wizard {
 
 		match selection {
 			0 => {
-				let new_alias = Input::with_theme(theme)
+				let new_alias = InputTemp::with_theme(theme)
 					.with_prompt("Pick new alias name")
 					.report(false)
 					.interact_text()?;
@@ -400,7 +426,7 @@ impl Wizard {
 
 		match operation {
 			Operations::Rename => {
-				let new_alias = Input::with_theme(theme)
+				let new_alias = InputTemp::with_theme(theme)
 					.with_prompt("Rename the alias")
 					.with_initial_text(alias)
 					.report(false)
@@ -504,7 +530,7 @@ impl Wizard {
 	}
 
 	fn pick_kubernetes_name_space(global_options: &GlobalOptions, theme: &dyn Theme) -> Result<String> {
-		let input = Input::with_theme(theme)
+		let input = InputTemp::with_theme(theme)
 			.with_prompt("Pick Name-Space");
 
 		let input = if let Some(Kubernetes { name_space }) = &global_options.config.orchestration.kubernetes {

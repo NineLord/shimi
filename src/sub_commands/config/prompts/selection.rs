@@ -117,39 +117,50 @@ impl <'a> Options<'a> {
 }
 
 impl Options<'_, Done> {
-	pub(super) fn get_selection(self, selected: usize) -> Selection {
-		Options::get_selection_options(self.items, selected)
+	pub(super) fn get_selection(&self, selected: usize) -> Selection {
+		Options::get_selection_options(&self.items, selected, false)
 			.expect("The given selected is out of bound of self")
 	}
 }
 
 impl Options<'_, DoneWithReturn> {
-	pub(super) fn get_selection(mut self, selected: usize) -> SelectionReturn {
-		let return_item = self.items.pop();
-		debug_assert!(return_item.is_some(), "According to this state there must be a return as the last item");
-		Options::get_selection_options(self.items, selected)
+	pub(super) fn get_selection(&self, selected: usize) -> SelectionReturn {
+		Options::get_selection_options(&self.items, selected, true)
 			.map_or(SelectionReturn::Return, SelectionReturn::Selection)
 	}
 }
 
 impl <'a> Options<'a> {
-	fn get_selection_options(options: Vec<AnyItem<'_>>, mut selected: usize) -> Option<Selection> {
-		for (index, options) in options.into_iter().enumerate() {
-			match options {
-				AnyItem::Item(_, _) => {
-					if selected == 0 {
-						return Some(Selection { vec_index: index, options_index: selected });
+	fn get_selection_options(options: &Vec<AnyItem<'_>>, mut selected: usize, is_skip_last: bool) -> Option<Selection> {
+		// Have to resort to macro, due to not being able to pass any iterator to a function.
+		// Also it's `iter.for_each` doesn't allow to break early.
+		macro_rules! find_selection {
+			($iter:expr) => ({
+				for (index, options) in $iter {
+					match options {
+						AnyItem::Item(_, _) => {
+							if selected == 0 {
+								return Some(Selection { vec_index: index, options_index: selected });
+							}
+							selected -= 1;
+						},
+						AnyItem::Items(items, _) => {
+							let len = items.len();
+							if selected < len {
+								return Some(Selection { vec_index: index, options_index: selected });
+							}
+							selected -= len;
+						},
 					}
-					selected -= 1;
-				},
-				AnyItem::Items(items, _) => {
-					let len = items.len();
-					if selected < len {
-						return Some(Selection { vec_index: index, options_index: selected });
-					}
-					selected -= len;
-				},
-			}
+				}
+			});
+		}
+
+		let iter = options.iter().enumerate();
+		if is_skip_last {
+			find_selection!(iter.take(options.len() -1));
+		} else {
+			find_selection!(iter);
 		}
 		None
 	}
@@ -159,7 +170,7 @@ impl <'a> Options<'a> {
 			.expect("The given selection index ins't valid");
 		match options {
 			AnyItem::Item(_, select) => *select = true,
-			AnyItem::Items(_, select) => { let _ = select.insert(selected.options_index); },
+			AnyItem::Items(_, select) => *select = Some(selected.options_index),
 		}
 	}
 }
