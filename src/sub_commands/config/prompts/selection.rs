@@ -1,4 +1,6 @@
-pub(super) const RETURN: &str = "↩ Return to previous menu";
+use state_shift::{type_state, impl_state};
+
+const RETURN: &str = "↩ Return to previous menu";
 
 //#region Options
 pub(super) enum Item<'a> {
@@ -24,90 +26,145 @@ pub(super) enum AnyItem<'a> {
 	Items(Items<'a>, Option<usize>),
 }
 
-// Options can be better:
-// 1. Add macro like `vec!` for it.
-// 2. Change it to state-machine, meaning forcing to call `set_selection`
-//    when done inserting in order to pass it to the prompter.
-pub struct Options<'a>(pub(super) Vec<AnyItem<'a>>);
+#[type_state(
+    states = (Inserting, InsertingReturn, Done, DoneWithReturn), // defines the available states
+    slots = (Inserting) // defines how many concurrent states will be there, and the initial values for these states
+)]
+pub struct Options<'a> {
+	pub(super) items: Vec<AnyItem<'a>>,
+	is_return: bool,
+}
 
-impl Options<'_> {
-	#[allow(dead_code)]
-	pub const fn new() -> Self {
-		Self(Vec::new())
+#[impl_state]
+impl <'a> Options<'a> {
+	#[require(Inserting)] // require the default state for the constructor
+	pub fn with_capacity(capacity: usize) -> Self {
+		Options {
+			items: Vec::with_capacity(capacity),
+			is_return: false,
+		}
 	}
 
-	pub fn with_capacity(capacity: usize) -> Self {
-		Self(Vec::with_capacity(capacity))
+	#[require(Inserting)]
+	pub fn insert_str(mut self, item: &'a str) -> Self {
+		self.items.push(AnyItem::Item(Item::Str(item), false));
+		self
+	}
+
+	#[require(Inserting)]
+	pub fn insert_string(mut self, item: String) -> Self {
+		self.items.push(AnyItem::Item(Item::String(item), false));
+		self
+	}
+
+	#[require(Inserting)]
+	pub fn insert_str_refs(mut self, items: &'a [&'a str]) -> Self {
+		self.items.push(AnyItem::Items(Items::StrRefs(items), None));
+		self
+	}
+
+	#[require(Inserting)]
+	pub fn insert_strings(mut self, items: &'a [String]) -> Self {
+		self.items.push(AnyItem::Items(Items::Strings(items), None));
+		self
+	}
+
+	#[require(Inserting)]
+	pub fn insert_string_refs(mut self, items: &'a [&'a String]) -> Self {
+		self.items.push(AnyItem::Items(Items::StringRefs(items), None));
+		self
+	}
+
+	#[require(Inserting)]
+	#[switch_to(InsertingReturn)]
+	pub fn insert_return(self) -> Options<'a> {
+		Options {
+			items: self.insert_str(RETURN).items,
+			is_return: true,
+		}
+	}
+
+	#[require(Inserting)]
+	#[switch_to(Done)]
+	pub fn set_selection(mut self, selected: &Selection) -> Options<'a> {
+		Options::set_selection_on_options(&mut self.items, selected);
+		Options {
+			items: self.items,
+			is_return: self.is_return,
+		}
+	}
+
+	#[require(InsertingReturn)]
+	#[switch_to(DoneWithReturn)]
+	pub fn set_selection(mut self, selected: &SelectionReturn) -> Options<'a> {
+		match selected {
+			SelectionReturn::Selection(selection) => Options::set_selection_on_options(&mut self.items, selection),
+			SelectionReturn::Return => {
+				let last = self.items.last_mut()
+					.expect("Due to being in InsertingReturn, there has to be last item which is return");
+				if let AnyItem::Item(_, select) = last {
+					*select = true;
+				} else {
+					unreachable!("Due to being in InsertingReturn, the last item has to be return which is AnyItem::Item");
+				}
+			},
+		}
+		Options {
+			items: self.items,
+			is_return: self.is_return,
+		}
+	}
+}
+
+impl Options<'_, Done> {
+	pub(super) fn get_selection(self, selected: usize) -> Selection {
+		Options::get_selection_options(self.items, selected)
+			.expect("The given selected is out of bound of self")
+	}
+}
+
+impl Options<'_, DoneWithReturn> {
+	pub(super) fn get_selection(self, selected: usize) -> SelectionReturn {
+		Options::get_selection_options(self.items, selected)
+			.map_or(SelectionReturn::Return, SelectionReturn::Selection)
 	}
 }
 
 impl <'a> Options<'a> {
-	pub fn insert_str(mut self, item: &'a str) -> Self {
-		self.0.push(AnyItem::Item(Item::Str(item), false));
-		self
-	}
-
-	pub fn insert_string(mut self, item: String) -> Self {
-		self.0.push(AnyItem::Item(Item::String(item), false));
-		self
-	}
-
-	pub fn insert_str_refs(mut self, items: &'a [&'a str]) -> Self {
-		self.0.push(AnyItem::Items(Items::StrRefs(items), None));
-		self
-	}
-
-	pub fn insert_strings(mut self, items: &'a [String]) -> Self {
-		self.0.push(AnyItem::Items(Items::Strings(items), None));
-		self
-	}
-
-	pub fn insert_string_refs(mut self, items: &'a [&'a String]) -> Self {
-		self.0.push(AnyItem::Items(Items::StringRefs(items), None));
-		self
-	}
-
-	pub fn insert_return(self) -> Self {
-		self.insert_str(RETURN)
-	}
-}
-
-impl Options<'_> {
-	pub fn len(&self) -> usize {
-		self.0.len()
-	}
-}
-
-impl Options<'_> {
-	pub(super) fn get_selection(&self, mut selected: usize) -> Selection {
-		for (index, options) in self.0.iter().enumerate() {
+	fn get_selection_options(options: Vec<AnyItem<'_>>, mut selected: usize) -> Option<Selection> {
+		for (index, options) in options.into_iter().enumerate() {
 			match options {
 				AnyItem::Item(_, _) => {
 					if selected == 0 {
-						return Selection { vec_index: index, options_index: selected };
+						return Some(Selection { vec_index: index, options_index: selected });
 					}
 					selected -= 1;
 				},
 				AnyItem::Items(items, _) => {
 					let len = items.len();
 					if selected < len {
-						return Selection { vec_index: index, options_index: selected };
+						return Some(Selection { vec_index: index, options_index: selected });
 					}
 					selected -= len;
 				},
 			}
 		}
-		unreachable!("The given selected {} is out of bound of self", selected)
+		None
 	}
 
-	pub fn set_selection(mut self, selected: &Selection) -> Self {
-		let options = self.0.get_mut(selected.vec_index)
+	fn set_selection_on_options(options: &mut [AnyItem<'a>], selected: &Selection) {
+		let options = options.get_mut(selected.vec_index)
 			.expect("The given selection index ins't valid");
 		match options {
 			AnyItem::Item(_, select) => *select = true,
 			AnyItem::Items(_, select) => { let _ = select.insert(selected.options_index); },
 		}
-		self
+	}
+}
+
+impl Options<'_> {
+	pub fn len(&self) -> usize {
+		self.items.len()
 	}
 }
 //#endregion
@@ -132,7 +189,7 @@ impl Default for SelectionReturn {
 //#region Macros
 macro_rules! insert_options_and_set_default {
 	($prompter:ident, $options:ident) => ({
-		let (index, found, new_prompter) = $options.0
+		let (index, found, new_prompter) = $options.items
 			.iter()
 			.fold((0, false, $prompter), |(mut index, mut found, mut $prompter), option| {
 				match option {

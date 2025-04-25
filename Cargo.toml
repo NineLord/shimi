@@ -29,6 +29,8 @@ log = { version = "0.4.27" } # Logger
 
 serde = { version = "1.0.219", features = ["derive"] } # Serialize and deserialize data
 strum = { version = "0.27.1", features = ["derive"] } # Enum utilities
+state-shift = { version = "2.1.1" } # Type State Machine
+
 
 ron = { version = "0.10.1" } # Ron format
 colored = { version = "3.0.0" } # Color strings for the terminal

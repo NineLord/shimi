@@ -120,7 +120,7 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 				.insert_string(format!("Orchestration: {:?}", self.global_options.config.orchestration.variant))
 				.insert_str_refs(Prefix::VARIANTS)
 				.set_selection(&select);
-			let selected = self.prompter.fuzzy_select("Choose a setting to edit", &options)?;
+			let selected = self.prompter.fuzzy_select("Choose a setting to edit", options)?;
 			match selected.vec_index {
 				0 => self.menu_2(SelectionReturn::default())?,
 				1 => match from_repr!(Prefix, selected.options_index) {
@@ -151,13 +151,14 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 		let options = Options::with_capacity(3)
 			.insert_string(add_check_mark!("🐋 Docker-Compose", self.config.orchestration.variant, OrchestrationType::DockerCompose))
 			.insert_string(add_check_mark!("☸️ Kubernetes", self.config.orchestration.variant, OrchestrationType::Kubernetes))
-			;/*.set_selection(&select);
+			.insert_return()
+			.set_selection(&select);
 
 		let selected = self.prompter.select_with_return("Choose orchestration", options)?;
 		match selected {
 			SelectionReturn::Selection(selection) => todo!(),
 			SelectionReturn::Return => todo!(),
-		}*/
+		}
 
 		todo!()
 	}
