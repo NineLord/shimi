@@ -31,6 +31,7 @@ pub(super) enum AnyItem<'a> {
 pub struct Options<'a>(pub(super) Vec<AnyItem<'a>>);
 
 impl Options<'_> {
+	#[allow(dead_code)]
 	pub const fn new() -> Self {
 		Self(Vec::new())
 	}
@@ -64,6 +65,10 @@ impl <'a> Options<'a> {
 	pub fn insert_string_refs(mut self, items: &'a [&'a String]) -> Self {
 		self.0.push(AnyItem::Items(Items::StringRefs(items), None));
 		self
+	}
+
+	pub fn insert_return(self) -> Self {
+		self.insert_str(RETURN)
 	}
 }
 

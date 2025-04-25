@@ -104,7 +104,6 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 
 impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 	fn menu_1(&self, mut select: Selection) -> Result<bool> {
-		#[allow(clippy::items_after_statements)]
 		#[derive(EnumString, FromRepr, VariantNames)]
 		#[repr(u8)]
 		enum Prefix {
@@ -123,7 +122,7 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 				.set_selection(&select);
 			let selected = self.prompter.fuzzy_select("Choose a setting to edit", &options)?;
 			match selected.vec_index {
-				0 => self.menu_2(Selection::default())?,
+				0 => self.menu_2(SelectionReturn::default())?,
 				1 => match from_repr!(Prefix, selected.options_index) {
 					Prefix::Containers => self.menu_4(Selection::default())?,
 					Prefix::SaveAndQuit => return Ok(true),
@@ -137,7 +136,29 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 }
 
 impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
-	fn menu_2(&self, mut select: Selection) -> Result<()> {
+	fn menu_2(&self, mut select: SelectionReturn) -> Result<()> {
+		macro_rules! add_check_mark {
+			($prefix:literal, $variant:expr, $expected:pat $(if $guard:expr)? $(,)?) => ({
+				let check_mark = if matches!($variant, $expected) {
+					" ✅"
+				} else {
+					""
+				};
+				format!("{}{check_mark}", $prefix)
+			});
+		}
+
+		let options = Options::with_capacity(3)
+			.insert_string(add_check_mark!("🐋 Docker-Compose", self.config.orchestration.variant, OrchestrationType::DockerCompose))
+			.insert_string(add_check_mark!("☸️ Kubernetes", self.config.orchestration.variant, OrchestrationType::Kubernetes))
+			;/*.set_selection(&select);
+
+		let selected = self.prompter.select_with_return("Choose orchestration", options)?;
+		match selected {
+			SelectionReturn::Selection(selection) => todo!(),
+			SelectionReturn::Return => todo!(),
+		}*/
+
 		todo!()
 	}
 

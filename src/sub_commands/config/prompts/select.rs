@@ -3,10 +3,8 @@ use dialoguer::Select;
 use super::{prompter::Prompter, selection::{RETURN, Options, Selection, SelectionReturn, insert_options_and_set_default, AnyItem, Item, Items}};
 
 impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
-	pub fn select_with_return<Prompt: Into<String>>(&self, prompt: Prompt, mut options: Options<'_>, is_allow_return: bool) -> Result<SelectionReturn> {
-		if is_allow_return {
-			options = options.insert_str(RETURN);
-		}
+	pub fn select_with_return<Prompt: Into<String>>(&self, prompt: Prompt, mut options: Options<'_>) -> Result<SelectionReturn> {
+		options = options.insert_str(RETURN);
 
 		let selection = self.select(prompt, &options)?;
 
