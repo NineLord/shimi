@@ -94,8 +94,16 @@ pub enum SelectionReturn {
 	Selection(Selection),
 	Return,
 }
+impl Default for SelectionReturn {
+	fn default() -> Self {
+		Self::Selection(Selection::default())
+	}
+}
 pub(super) trait GetSelection {
 	fn get_selection(&self, selected: usize) -> Selection;
+}
+pub trait SetSelection {
+	fn set_selection(&mut self, selected: &Selection);
 }
 impl GetSelection for Vec<Options<'_>> {
 	fn get_selection(&self, mut selected: usize) -> Selection {
@@ -119,9 +127,19 @@ impl GetSelection for Vec<Options<'_>> {
 		unreachable!("The given selected {} is out of bound of self", selected)
 	}
 }
+impl SetSelection for Vec<Options<'_>> {
+	fn set_selection(&mut self, selected: &Selection) {
+		let options = self.get_mut(selected.vec_index)
+			.expect("The given selection index ins't valid");
+		match options {
+			Options::Item(_, select) => *select = true,
+			Options::Items(_, select) => { let _ = select.insert(selected.options_index); },
+		}
+	}
+}
 
 macro_rules! from_repr {
-	($enum:ident, $index:ident) => {
+	($enum:ident, $index:expr) => {
 		$enum::from_repr(
 			u8::try_from($index).expect("Enum not suppose to have more than u8::MAX variants")
 		).expect("dialoguer::prompts::select::FuzzySelect insures only valid discriminant will be received")

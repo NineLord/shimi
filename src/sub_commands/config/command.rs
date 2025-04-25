@@ -12,7 +12,7 @@ use strum::{EnumString, FromRepr, VariantNames};
 use super::{
 	structure::{Config, OrchestrationType, Orchestration, Kubernetes, Alias, ContainerName},
 	file_handler::FileHandler,
-	prompts::{prompter::{Prompter, from_repr, Item, Items, Options, Selection, SelectionReturn}}
+	prompts::{prompter::{Prompter, from_repr, Item, Items, Options, Selection, SelectionReturn, SetSelection}}
 };
 use crate::{Run, GlobalOptions};
 
@@ -116,22 +116,22 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 			Quit,
 		}
 
-		loop {			
+		loop {
 			let options = vec![
-				Options::Item(Item::String(format!("Orchestration: {:?}", self.global_options.config.orchestration.variant)), true),
+				Options::Item(Item::String(format!("Orchestration: {:?}", self.global_options.config.orchestration.variant)), false),
 				Options::Items(Items::StrRefs(Prefix::VARIANTS), None),
-			];
-			let Selection { vec_index, options_index } = self.prompter.fuzzy_select("Choose a setting to edit", &options)?;
-			match vec_index {
-				0 => self.menu_2(Selection { vec_index: 0, options_index: 0 })?,
-				1 => match from_repr!(Prefix, options_index) {
-					Prefix::Containers => self.menu_4(Selection { vec_index: 0, options_index: 0 })?,
+			].tap_mut(|options| options.set_selection(&select));
+			let selected = self.prompter.fuzzy_select("Choose a setting to edit", &options)?;
+			match selected.vec_index {
+				0 => self.menu_2(Selection::default())?,
+				1 => match from_repr!(Prefix, selected.options_index) {
+					Prefix::Containers => self.menu_4(Selection::default())?,
 					Prefix::SaveAndQuit => return Ok(true),
 					Prefix::Quit => return Ok(false),
 				},
 				_ => unreachable!("options has only 2 elements")
 			}
-			// select = selected; // TODO: fix this and `options` above need to relay on `select`
+			select = selected;
 		}
 	}
 }
