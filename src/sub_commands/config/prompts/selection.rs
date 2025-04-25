@@ -124,7 +124,9 @@ impl Options<'_, Done> {
 }
 
 impl Options<'_, DoneWithReturn> {
-	pub(super) fn get_selection(self, selected: usize) -> SelectionReturn {
+	pub(super) fn get_selection(mut self, selected: usize) -> SelectionReturn {
+		let return_item = self.items.pop();
+		debug_assert!(return_item.is_some(), "According to this state there must be a return as the last item");
 		Options::get_selection_options(self.items, selected)
 			.map_or(SelectionReturn::Return, SelectionReturn::Selection)
 	}

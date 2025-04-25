@@ -92,7 +92,7 @@ impl <'cfg, Theme: dialoguer::theme::Theme> Wizard2<'cfg, Theme> {
 }
 
 impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
-	fn run(self) -> Result<Option<Config>> {
+	fn run(mut self) -> Result<Option<Config>> {
 		let result = if self.menu_1(Selection::default())? {
 			Some(self.config)
 		} else {
@@ -103,7 +103,7 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 }
 
 impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
-	fn menu_1(&self, mut select: Selection) -> Result<bool> {
+	fn menu_1(&mut self, mut select: Selection) -> Result<bool> {
 		#[derive(EnumString, FromRepr, VariantNames)]
 		#[repr(u8)]
 		enum Prefix {
@@ -117,7 +117,7 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 
 		loop {
 			let options = Options::with_capacity(2)
-				.insert_string(format!("Orchestration: {:?}", self.global_options.config.orchestration.variant))
+				.insert_string(format!("Orchestration: {:?}", self.config.orchestration.variant))
 				.insert_str_refs(Prefix::VARIANTS)
 				.set_selection(&select);
 			let selected = self.prompter.fuzzy_select("Choose a setting to edit", options)?;
@@ -136,7 +136,7 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 }
 
 impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
-	fn menu_2(&self, mut select: SelectionReturn) -> Result<()> {
+	fn menu_2(&mut self, select: SelectionReturn) -> Result<()> {
 		macro_rules! add_check_mark {
 			($prefix:literal, $variant:expr, $expected:pat $(if $guard:expr)? $(,)?) => ({
 				let check_mark = if matches!($variant, $expected) {
@@ -150,17 +150,22 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 
 		let options = Options::with_capacity(3)
 			.insert_string(add_check_mark!("🐋 Docker-Compose", self.config.orchestration.variant, OrchestrationType::DockerCompose))
-			.insert_string(add_check_mark!("☸️ Kubernetes", self.config.orchestration.variant, OrchestrationType::Kubernetes))
+			.insert_string(add_check_mark!("☸️  Kubernetes", self.config.orchestration.variant, OrchestrationType::Kubernetes))
 			.insert_return()
 			.set_selection(&select);
 
 		let selected = self.prompter.select_with_return("Choose orchestration", options)?;
 		match selected {
-			SelectionReturn::Selection(selection) => todo!(),
-			SelectionReturn::Return => todo!(),
+			SelectionReturn::Selection(Selection { vec_index: 0, options_index: _ }) => self.config.orchestration.variant = OrchestrationType::DockerCompose,
+			SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ }) => {
+				// TODO: go to menu_3
+				self.config.orchestration.variant = OrchestrationType::Kubernetes;
+			},
+			SelectionReturn::Return => (),
+			SelectionReturn::Selection(Selection { vec_index: _, options_index: _ }) => unreachable!("There are only two options currently"),
 		}
 
-		todo!()
+		Ok(())
 	}
 
 	fn menu_4(&self, mut select: Selection) -> Result<()> {
