@@ -116,13 +116,13 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 		}
 
 		loop {
-			let mut options = Options::with_capacity(2)
+			let options = Options::with_capacity(2)
 				.insert_string(format!("Orchestration: {:?}", self.config.orchestration.variant))
 				.insert_str_refs(Prefix::VARIANTS)
 				.set_selection(&select);
 			let selected = self.prompter.fuzzy_select("Choose a setting to edit", &options)?;
 			match selected.vec_index {
-				0 => self.menu_2_set_orch(SelectionReturn::default())?,
+				0 => self.menu_2_set_orch(&SelectionReturn::default())?,
 				1 => match from_repr!(Prefix, selected.options_index) {
 					Prefix::Containers => self.menu_4_edit_containers(Selection::default())?,
 					Prefix::SaveAndQuit => return Ok(true),
@@ -134,7 +134,7 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 		}
 	}
 
-	fn menu_2_set_orch(&mut self, mut select: SelectionReturn) -> Result<()> {
+	fn menu_2_set_orch(&mut self, select: &SelectionReturn) -> Result<()> {
 		macro_rules! add_check_mark {
 			($prefix:literal, $variant:expr, $expected:pat $(if $guard:expr)? $(,)?) => ({
 				let check_mark = if matches!($variant, $expected) {
@@ -168,7 +168,7 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 				SelectionReturn::Return => break,
 				SelectionReturn::Selection(Selection { vec_index: _, options_index: _ }) => unreachable!("There are only two options currently"),
 			}
-			// select = selected;
+			options = options.re_set_selection(&selected);
 		}
 
 		Ok(())

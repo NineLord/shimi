@@ -27,12 +27,13 @@ pub(super) enum AnyItem<'a> {
 }
 
 #[type_state(
-    states = (Inserting, InsertingReturn, Done, DoneWithReturn), // defines the available states
+    states = (Inserting, SelectingReturn, Selected, SelectedReturn, ReSelecting), // defines the available states
     slots = (Inserting) // defines how many concurrent states will be there, and the initial values for these states
 )]
 pub struct Options<'a> {
 	pub(super) items: Vec<AnyItem<'a>>,
 	is_return: bool,
+	selected: bool,
 }
 
 #[impl_state]
@@ -42,6 +43,7 @@ impl <'a> Options<'a> {
 		Options {
 			items: Vec::with_capacity(capacity),
 			is_return: false,
+			selected: false,
 		}
 	}
 
@@ -76,54 +78,68 @@ impl <'a> Options<'a> {
 	}
 
 	#[require(Inserting)]
-	#[switch_to(InsertingReturn)]
+	#[switch_to(SelectingReturn)]
 	pub fn insert_return(self) -> Options<'a> {
 		Options {
+			selected: self.selected,
 			items: self.insert_str(RETURN).items,
 			is_return: true,
 		}
 	}
 
 	#[require(Inserting)]
-	#[switch_to(Done)]
+	#[switch_to(Selected)]
 	pub fn set_selection(mut self, selected: &Selection) -> Options<'a> {
 		Options::set_selection_on_options(&mut self.items, selected);
 		Options {
 			items: self.items,
 			is_return: self.is_return,
+			selected: true,
 		}
 	}
 
-	#[require(InsertingReturn)]
-	#[switch_to(DoneWithReturn)]
+	#[require(SelectingReturn)]
+	#[switch_to(SelectedReturn)]
 	pub fn set_selection(mut self, selected: &SelectionReturn) -> Options<'a> {
-		match selected {
-			SelectionReturn::Selection(selection) => Options::set_selection_on_options(&mut self.items, selection),
-			SelectionReturn::Return => {
-				let last = self.items.last_mut()
-					.expect("Due to being in InsertingReturn, there has to be last item which is return");
-				if let AnyItem::Item(_, select) = last {
-					*select = true;
-				} else {
-					unreachable!("Due to being in InsertingReturn, the last item has to be return which is AnyItem::Item");
-				}
-			},
-		}
+		Options::set_selection_on_options_return(&mut self.items, selected);
 		Options {
 			items: self.items,
 			is_return: self.is_return,
+			selected: true,
+		}
+	}
+
+	#[require(Selected)]
+	pub fn re_set_selection(mut self, selected: &Selection) -> Options<'a> {
+		Options::clear_prev_selection(&mut self.items);
+		Options::set_selection_on_options(&mut self.items, selected);
+		Options {
+			items: self.items,
+			is_return: self.is_return,
+			selected: true,
+		}
+	}
+
+	#[require(SelectedReturn)]
+	pub fn re_set_selection(mut self, selected: &SelectionReturn) -> Options<'a> {
+		Options::clear_prev_selection(&mut self.items);
+		Options::set_selection_on_options_return(&mut self.items, selected);
+		Options {
+			items: self.items,
+			is_return: self.is_return,
+			selected: true,
 		}
 	}
 }
 
-impl Options<'_, Done> {
+impl Options<'_, Selected> {
 	pub(super) fn get_selection(&self, selected: usize) -> Selection {
 		Options::get_selection_options(&self.items, selected, false)
 			.expect("The given selected is out of bound of self")
 	}
 }
 
-impl Options<'_, DoneWithReturn> {
+impl Options<'_, SelectedReturn> {
 	pub(super) fn get_selection(&self, selected: usize) -> SelectionReturn {
 		Options::get_selection_options(&self.items, selected, true)
 			.map_or(SelectionReturn::Return, SelectionReturn::Selection)
@@ -165,12 +181,46 @@ impl <'a> Options<'a> {
 		None
 	}
 
+	fn clear_prev_selection(options: &mut [AnyItem<'a>]) {
+		for options in options {
+			match options {
+				AnyItem::Item(_, selected) => {
+					if *selected {
+						*selected = false;
+						break;
+					}
+				},
+				AnyItem::Items(_, selected) => {
+					if selected.is_some() {
+						selected.take();
+						break;
+					}
+				},
+			}
+		}
+	}
+
 	fn set_selection_on_options(options: &mut [AnyItem<'a>], selected: &Selection) {
 		let options = options.get_mut(selected.vec_index)
 			.expect("The given selection index ins't valid");
 		match options {
 			AnyItem::Item(_, select) => *select = true,
 			AnyItem::Items(_, select) => *select = Some(selected.options_index),
+		}
+	}
+
+	fn set_selection_on_options_return(options: &mut [AnyItem<'a>], selected: &SelectionReturn) {
+		match selected {
+			SelectionReturn::Selection(selection) => Options::set_selection_on_options(options, selection),
+			SelectionReturn::Return => {
+				let last = options.last_mut()
+					.expect("Due to being in SelectingReturn, there has to be last item which is return");
+				if let AnyItem::Item(_, select) = last {
+					*select = true;
+				} else {
+					unreachable!("Due to being in SelectingReturn, the last item has to be return which is AnyItem::Item");
+				}
+			},
 		}
 	}
 }
