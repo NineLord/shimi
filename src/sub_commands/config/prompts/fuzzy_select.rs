@@ -1,11 +1,11 @@
 use anyhow::Result;
 use dialoguer::FuzzySelect;
-use super::prompter::{Prompter, RETURN, GetSelection, Item, Items, Options, Selection, SelectionReturn, insert_options_and_set_default};
+use super::{prompter::Prompter, selection::{RETURN, Options, Selection, SelectionReturn, insert_options_and_set_default, AnyItem, Item, Items}};
 
 impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
-	pub fn fuzzy_select_with_return<Prompt: Into<String>>(&self, prompt: Prompt, mut options: Vec<Options<'_>>, is_allow_return: bool) -> Result<SelectionReturn> {
+	pub fn fuzzy_select_with_return<Prompt: Into<String>>(&self, prompt: Prompt, mut options: Options<'_>, is_allow_return: bool) -> Result<SelectionReturn> {
 		if is_allow_return {
-			options.push(Options::Item(Item::Str(RETURN), false));
+			options = options.insert_str(RETURN);
 		}
 
 		let selection = self.fuzzy_select(prompt, &options)?;
@@ -19,7 +19,7 @@ impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
 		Ok(result)
 	}
 
-	pub fn fuzzy_select<Prompt: Into<String>>(&self, prompt: Prompt, options: &Vec<Options<'_>>) -> Result<Selection> {
+	pub fn fuzzy_select<Prompt: Into<String>>(&self, prompt: Prompt, options: &Options<'_>) -> Result<Selection> {
 		let mut fuzzy_select = FuzzySelect::with_theme(&self.theme)
 			.with_prompt(prompt)
 			.report(false);

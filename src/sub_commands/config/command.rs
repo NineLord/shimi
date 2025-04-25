@@ -12,7 +12,7 @@ use strum::{EnumString, FromRepr, VariantNames};
 use super::{
 	structure::{Config, OrchestrationType, Orchestration, Kubernetes, Alias, ContainerName},
 	file_handler::FileHandler,
-	prompts::{prompter::{Prompter, from_repr, Item, Items, Options, Selection, SelectionReturn, SetSelection}}
+	prompts::{prompter::Prompter, selection::{Options, Selection, SelectionReturn, from_repr}}
 };
 use crate::{Run, GlobalOptions};
 
@@ -117,10 +117,10 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 		}
 
 		loop {
-			let options = vec![
-				Options::Item(Item::String(format!("Orchestration: {:?}", self.global_options.config.orchestration.variant)), false),
-				Options::Items(Items::StrRefs(Prefix::VARIANTS), None),
-			].tap_mut(|options| options.set_selection(&select));
+			let options = Options::with_capacity(2)
+				.insert_string(format!("Orchestration: {:?}", self.global_options.config.orchestration.variant))
+				.insert_str_refs(Prefix::VARIANTS)
+				.set_selection(&select);
 			let selected = self.prompter.fuzzy_select("Choose a setting to edit", &options)?;
 			match selected.vec_index {
 				0 => self.menu_2(Selection::default())?,

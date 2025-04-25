@@ -35,6 +35,7 @@ pub mod sub_commands {
 
 		mod prompts {
 			pub(super) mod prompter;
+			pub(super) mod selection;
 			pub(super) mod multi_select;
 			pub(super) mod fuzzy_select;
 			pub(super) mod select;
