@@ -3,10 +3,12 @@ use state_shift::{type_state, impl_state};
 const RETURN: &str = "↩ Return to previous menu";
 
 //#region Options
+#[allow(dead_code)]
 pub(super) enum Item<'a> {
 	Str(&'a str),
 	String(String),
 }
+#[allow(dead_code)]
 pub(super) enum Items<'a> {
 	StrRefs(&'a [&'a str]),
 	Strings(&'a [String]),
@@ -21,6 +23,7 @@ impl Items<'_> {
 		}
 	}
 }
+#[allow(dead_code)]
 pub(super) enum AnyItem<'a> {
 	Item(Item<'a>, bool),
 	Items(Items<'a>, Option<usize>),
@@ -224,20 +227,16 @@ impl <'a> Options<'a> {
 		}
 	}
 }
-
-impl Options<'_> {
-	pub fn len(&self) -> usize {
-		self.items.len()
-	}
-}
 //#endregion
 
 //#region Selection
+#[allow(dead_code)]
 #[derive(Default)]
 pub struct Selection {
 	pub vec_index: usize,
 	pub options_index: usize,
 }
+#[allow(dead_code)]
 pub enum SelectionReturn {
 	Selection(Selection),
 	Return,

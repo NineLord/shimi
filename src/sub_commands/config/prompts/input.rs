@@ -8,6 +8,7 @@ pub enum Input {
 }
 
 impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
+	#[allow(dead_code)]
 	pub fn input<Prompt: Into<String>>(&self, prompt: Prompt, initial_text: Option<&str>) -> Result<Input> {
 		let mut input = PromptInput::with_theme(&self.theme)
 			.with_prompt(prompt)
