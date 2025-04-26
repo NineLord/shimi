@@ -10,7 +10,7 @@ use lazy_static::lazy_static;
 use hashbrown::{HashMap, hash_map::{Entry, OccupiedEntry}, HashSet};
 use strum::{EnumString, FromRepr, VariantNames};
 use super::{
-	structure::{Config, OrchestrationType, Orchestration, Kubernetes, Alias, ContainerName},
+	structure::{Config, OrchestrationType, Orchestration, Kubernetes, Alias, AliasToContainer, ContainerName},
 	file_handler::FileHandler,
 	prompts::{prompter::Prompter, selection::{Options, Selection, SelectionReturn, from_repr}, input::Input}
 };
@@ -72,14 +72,14 @@ impl Display for ContainerAlias {
 	}
 }
 
-struct Wizard2<'cfg, Theme: dialoguer::theme::Theme> {
-	prompter: Prompter<Theme>,
+struct Wizard2<'cfg, T: Theme> {
+	prompter: Prompter<T>,
 	global_options: &'cfg GlobalOptions,
 	config: Config,
 }
 
-impl <'cfg, Theme: dialoguer::theme::Theme> Wizard2<'cfg, Theme> {
-	pub fn new(global_options: &'cfg GlobalOptions, theme: Theme) -> Self {
+impl <'cfg, T: Theme> Wizard2<'cfg, T> {
+	pub fn new(global_options: &'cfg GlobalOptions, theme: T) -> Self {
 		Self {
 			prompter: Prompter::new(theme),
 			global_options,
@@ -91,7 +91,7 @@ impl <'cfg, Theme: dialoguer::theme::Theme> Wizard2<'cfg, Theme> {
 	}
 }
 
-impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
+impl <T: Theme> Wizard2<'_, T> {
 	fn run(mut self) -> Result<Option<Config>> {
 		let result = if self.menu_1_select_category(Selection::default())? {
 			Some(self.config)
@@ -102,7 +102,7 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 	}
 }
 
-impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
+impl <T: Theme> Wizard2<'_, T> {
 	fn menu_1_select_category(&mut self, mut select: Selection) -> Result<bool> {
 		#[derive(EnumString, FromRepr, VariantNames)]
 		#[repr(u8)]
@@ -116,7 +116,7 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 		}
 
 		loop {
-			let options = Options::with_capacity(2)
+			let options = Options::with_capacity(1 + Prefix::VARIANTS.len())
 				.insert_string(format!("Orchestration: {:?}", self.config.orchestration.variant))
 				.insert_str_refs(Prefix::VARIANTS)
 				.set_selection(&select);
@@ -124,7 +124,7 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 			match selected.vec_index {
 				0 => self.menu_2_set_orch(&SelectionReturn::default())?,
 				1 => match from_repr!(Prefix, selected.options_index) {
-					Prefix::Containers => self.menu_4_edit_containers(Selection::default())?,
+					Prefix::Containers => self.menu_4_edit_containers(SelectionReturn::default())?,
 					Prefix::SaveAndQuit => return Ok(true),
 					Prefix::Quit => return Ok(false),
 				},
@@ -150,7 +150,7 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 			.insert_string(add_check_mark!("🐋 Docker-Compose", self.config.orchestration.variant, OrchestrationType::DockerCompose))
 			.insert_string(add_check_mark!("☸️  Kubernetes", self.config.orchestration.variant, OrchestrationType::Kubernetes))
 			.insert_return()
-			.set_selection(&select);
+			.set_selection(select);
 
 		loop {
 			let selected = self.prompter.select_with_return("Choose orchestration", &options)?;
@@ -194,8 +194,125 @@ impl <Theme: dialoguer::theme::Theme> Wizard2<'_, Theme> {
 		Ok(result)
 	}
 
-	fn menu_4_edit_containers(&mut self, mut select: Selection) -> Result<()> {
+	fn menu_4_edit_containers(&mut self, mut select: SelectionReturn) -> Result<()> {
+		#[derive(EnumString, FromRepr, VariantNames)]
+		#[repr(u8)]
+		enum Prefix {
+			#[strum(serialize = "➕ Add")]
+			Add,
+			#[strum(serialize = "❌ Remove")]
+			Remove,
+		}
+
+		let mut container_to_alias = self.get_reverse_orch_aliases();
+		let containers = container_to_alias.keys().collect::<Vec<&String>>();
+		let options = Options::with_capacity(Prefix::VARIANTS.len() + container_to_alias.len() + 1)
+			.insert_str_refs(Prefix::VARIANTS)
+			.insert_string_refs(&containers)
+			.insert_return()
+			.set_selection(&select);
+		let selected = self.prompter.fuzzy_select_with_return("Choose container name", &options)?;
+		match selected {
+			SelectionReturn::Selection(Selection { vec_index: 0, options_index }) => {
+				match from_repr!(Prefix, options_index) {
+					Prefix::Add => todo!("menu_5"),
+					Prefix::Remove => todo!("menu_13"),
+				}
+			},
+			SelectionReturn::Selection(Selection { vec_index: 1, options_index }) => {
+				let container = *containers.get(options_index)
+					.expect("options_index has to be in range of containers");
+				let container = container.clone();
+				let aliases = container_to_alias.get_mut(&container)
+					.expect("container comes from this map keys");
+				todo!("menu_7")
+			},
+			SelectionReturn::Selection(Selection { vec_index: _, options_index: _ }) => unreachable!("options has only 2 elements"),
+			SelectionReturn::Return => return Ok(()),
+		}
+		
 		todo!()
+	}
+
+	/// # Returns
+	/// If true, added a container.
+	fn menu_5(&mut self, container_to_alias: &mut ContainerToAlias) -> Result<bool> {
+		let input = self.prompter.input_with_validation("Choose new container name (leave empty to not add)", None,
+		|container_name: &String | -> Result<(), String> {
+			let container_name = container_name.trim();
+			if container_name.is_empty() {
+				Ok(())
+			} else if container_to_alias.contains_key(container_name) {
+				Err(format!("The container name {container_name:?} already exists"))
+			} else {
+				Ok(())
+			}
+		})?;
+
+		let result = match input {
+			Input::NoneEmpty(container_name) => {
+				match container_to_alias.entry(container_name) {
+					Entry::Vacant(entry) => {
+						let container_alias = todo!("menu_6");
+						true
+					},
+					Entry::Occupied(_) => unreachable!("The validation callback above makes sure the entry is always vacant"),
+				}
+			},
+			Input::Empty => false,
+		};
+		Ok(result)
+		// todo!()
+	}
+
+	fn menu_6(&mut self) -> Result<()> {
+
+		todo!()
+	}
+}
+
+type ContainerToAlias = HashMap<ContainerNameRaw, HashSet<ContainerAlias>>;
+
+impl <T: Theme> Wizard2<'_, T> {
+	fn get_reverse_orch_aliases(&self) -> ContainerToAlias {
+		Wizard2::<T>::reverse_orch_aliases(&self.config.orchestration.aliases)
+	}
+
+	/// Generate a mapping from container names to their aliases,
+	/// according to the current config.
+	fn reverse_orch_aliases(aliases: &AliasToContainer) -> ContainerToAlias {
+		aliases
+			.iter()
+			.map(|(alias, container_name)| (alias.clone(), container_name.clone()))
+			.fold(HashMap::new(), |mut result, (alias, ContainerName { name: container_name, ttl })| {
+				result.entry(container_name).or_default().insert(ContainerAlias { name: alias, ttl });
+				result
+			})
+	}
+
+	fn set_restore_orch_aliases(&mut self, reversed_aliases: ContainerToAlias) {
+		self.config.orchestration.aliases = Wizard2::<T>::restore_orch_aliases(reversed_aliases);
+	}
+
+	/// Reverse a mapping from container names to their aliases,
+	/// back to the config format.
+	fn restore_orch_aliases(reversed_aliases: ContainerToAlias) -> AliasToContainer {
+		reversed_aliases
+			.into_iter()
+			.fold(HashMap::new(), |mut result, (container_name, aliases)| {
+				for ContainerAlias { name: alias, ttl } in aliases {
+					match result.entry(alias) {
+						Entry::Vacant(entry) => {
+							entry.insert(ContainerName { name: container_name.clone(), ttl });
+						},
+						Entry::Occupied(entry) => {
+							warn!("The alias {0:?} points to two different container names: {1:?} and {2:?} ; Ignoring: {2:?}",
+								entry.key(), entry.get(), ContainerName { name: container_name.clone(), ttl });
+						},
+					}
+				}
+				result
+			})
 	}
 }
 

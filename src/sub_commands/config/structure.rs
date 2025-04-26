@@ -10,11 +10,14 @@ pub struct Config {
 	pub orchestration: Orchestration,
 }
 
+pub type Alias = String;
+pub type AliasToContainer = HashMap<Alias, ContainerName>;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Orchestration {
 	pub variant: OrchestrationType,
 	pub kubernetes: Option<Kubernetes>,
-	pub aliases: HashMap<Alias, ContainerName>,
+	pub aliases: AliasToContainer,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, EnumString, FromRepr, VariantNames, ValueEnum)]
@@ -30,8 +33,6 @@ pub enum OrchestrationType {
 pub struct Kubernetes {
 	pub name_space: String,
 }
-
-pub type Alias = String;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContainerName {

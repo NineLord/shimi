@@ -1,5 +1,5 @@
 use anyhow::Result;
-use dialoguer::Input as PromptInput;
+use dialoguer::{Input as PromptInput, InputValidator};
 use super::prompter::Prompter;
 
 pub enum Input {
@@ -10,10 +10,33 @@ pub enum Input {
 impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
 	#[allow(dead_code)]
 	pub fn input<Prompt: Into<String>>(&self, prompt: Prompt, initial_text: Option<&str>) -> Result<Input> {
-		let mut input = PromptInput::with_theme(&self.theme)
+		let none = None as Option<Box<dyn FnMut(&String) -> Result<(), &'static str>>>;
+		self.input_generic(prompt, initial_text, none)
+	}
+
+	#[allow(dead_code)]
+	pub fn input_with_validation<'a, Prompt, V>(&'a self, prompt: Prompt, initial_text: Option<&str>, validator: V) -> Result<Input>
+	where
+		Prompt: Into<String>,
+		V: InputValidator<String> + 'a,
+        V::Err: ToString,
+	{
+		self.input_generic(prompt, initial_text, Some(validator))
+	}
+
+	fn input_generic<'a, Prompt, V>(&'a self, prompt: Prompt, initial_text: Option<&str>, validator: Option<V>) -> Result<Input>
+	where
+		Prompt: Into<String>,
+		V: InputValidator<String> + 'a,
+        V::Err: ToString,
+	{
+		let mut input: PromptInput<'a, String> = PromptInput::with_theme(&self.theme)
 			.with_prompt(prompt)
 			.allow_empty(true)
 			.report(false);
+		if let Some(validator) = validator {
+			input = input.validate_with(validator);
+		}
 		if let Some(initial_text) = initial_text {
 			input = input.with_initial_text(initial_text);
 		}
