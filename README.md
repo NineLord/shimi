@@ -21,6 +21,7 @@ instead of going over all of them each time running the config command.
  * By default `s docker logs` always follows.
  * By default `s docker logs` shows all the logs (no `tail` turned on).
 * [ ] `clap` has feature for auto completions to commands.
+* [ ] Handle config file with `confy` instead of manually: `confy = {version = "*", default-features = false, features = ["ron_conf"]} # Configuration management`
 
 #### License
 
