@@ -313,7 +313,7 @@ impl <T: Theme> Wizard<'_, T> {
 
 	/// # Returns
 	/// If true, the container was removed
-	fn menu_7_edit_container(&self, container_to_alias: &mut ContainerMapping, container_name: Rc<str>, mut select: SelectionReturn) -> Result<bool> {
+	fn menu_7_edit_container(&self, container_to_alias: &mut ContainerMapping, mut container_name: Rc<str>, mut select: SelectionReturn) -> Result<bool> {
 		#[derive(EnumString, FromRepr, VariantNames)]
 		#[repr(u8)]
 		enum EditAlias {
@@ -344,8 +344,22 @@ impl <T: Theme> Wizard<'_, T> {
 						EditAlias::Remove => self.menu_8_multi_remove_aliases(&container_name, container_to_alias)?,
 					}
 				},
-				SelectionReturn::Selection(Selection { vec_index: 1, options_index: 0 }) => todo!("menu_11"),
-				SelectionReturn::Selection(Selection { vec_index: 1, options_index: 1 }) => todo!("menu_11"),
+				SelectionReturn::Selection(Selection { vec_index: 1, options_index: 0 }) => {
+					if let Some(new_container_name) = self.menu_11_rename_container(&container_name, &container_to_alias.containers)? {
+						let new_container_name_entry = container_to_alias.containers.insert(Rc::clone(&new_container_name), IndexSet::new());
+						debug_assert!(new_container_name_entry.is_none(), "There shouldn't be an entry for the new container name, it was validated at menu 11");
+						match container_to_alias.containers.swap_remove(&container_name) {
+							Some(prev_aliases) => {
+								let aliases = container_to_alias.containers.get_mut(&new_container_name)
+									.expect("The new container name was just inserted");
+								*aliases = prev_aliases;
+							},
+							None => unreachable!("The current container name must have an entry in the mapping"),
+						}
+						container_name = new_container_name;
+					}
+				},
+				SelectionReturn::Selection(Selection { vec_index: 1, options_index: 1 }) => todo!("menu_12"),
 				SelectionReturn::Selection(Selection { vec_index: 2, options_index }) => todo!("menu_9"),
 				SelectionReturn::Return => return Ok(false),
 				SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ }) => unreachable!("edit_container has only 2 elements"),
@@ -373,6 +387,33 @@ impl <T: Theme> Wizard<'_, T> {
 		}
 		
 		Ok(())
+	}
+
+	fn menu_11_rename_container(&self, container_name: &str, container_to_alias: &ContainerToAlias) -> Result<Option<RcContainerName>> {
+		let mut is_same_container_name = false;
+		let input = self.prompter.input_with_validation(
+			format!("Choose new container name for {container_name:?} (leave empty to not rename)"),
+			Some(container_name),
+			|new_container_name: &String | -> Result<(), String> {
+				let new_container_name = new_container_name.trim();
+				if new_container_name.is_empty() {
+					Ok(())
+				} else if container_name == new_container_name {
+					is_same_container_name = true;
+					Ok(())
+				} else if container_to_alias.contains_key(new_container_name) {
+					Err(format!("The container name {new_container_name:?} already exists"))
+				} else {
+					Ok(())
+				}
+			})?;
+
+		let result = match input {
+			Input::NoneEmpty(container_name) => Some(Rc::from(container_name)),
+			Input::Empty => None,
+		};
+
+		Ok(result)
 	}
 }
 
