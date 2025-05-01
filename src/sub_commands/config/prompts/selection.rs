@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use state_shift::{type_state, impl_state};
 
 const RETURN: &str = "↩ Return to previous menu";
@@ -13,6 +14,7 @@ pub(super) enum Items<'a> {
 	StrRefs(&'a [&'a str]),
 	Strings(&'a [String]),
 	StringRefs(&'a [&'a String]),
+	RcStrings(&'a [Rc<str>]),
 }
 impl Items<'_> {
 	pub const fn len(&self) -> usize {
@@ -20,6 +22,7 @@ impl Items<'_> {
 			Items::StrRefs(items) => items.len(),
 			Items::Strings(items) => items.len(),
 			Items::StringRefs(items) => items.len(),
+			Items::RcStrings(items) => items.len(),
 		}
 	}
 }
@@ -77,6 +80,12 @@ impl <'a> Options<'a> {
 	#[require(Inserting)]
 	pub fn insert_string_refs(mut self, items: &'a [&'a String]) -> Self {
 		self.items.push(AnyItem::Items(Items::StringRefs(items), None));
+		self
+	}
+
+	#[require(Inserting)]
+	pub fn insert_rc_strings(mut self, items: &'a [Rc<str>]) -> Self {
+		self.items.push(AnyItem::Items(Items::RcStrings(items), None));
 		self
 	}
 
@@ -273,6 +282,7 @@ macro_rules! insert_options_and_set_default {
 							Items::StrRefs(items) => (items.len(), $prompter.items(items)),
 							Items::Strings(items) => (items.len(), $prompter.items(items)),
 							Items::StringRefs(items) => (items.len(), $prompter.items(items)),
+							Items::RcStrings(items) => (items.len(), $prompter.items(items)),
 						};
 						$prompter = new_prompter;
 						if !found {
