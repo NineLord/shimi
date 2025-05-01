@@ -5,15 +5,15 @@ use clap::Args;
 use log::{info, warn};
 use time::PrimitiveDateTime;
 use colored::Colorize;
-use dialoguer::{theme::{ColorfulTheme, Theme}, Input as InputTemp, MultiSelect, Select, Confirm, FuzzySelect};
+use dialoguer::theme::{ColorfulTheme, Theme};
 use lazy_static::lazy_static;
-use hashbrown::{HashMap, hash_map::{Entry, OccupiedEntry}, HashSet};
+use hashbrown::{HashMap, hash_map::Entry, HashSet};
 use indexmap::{IndexMap, IndexSet, map::Entry as IndexEntry};
 use strum::{EnumString, FromRepr, VariantNames};
 use super::{
 	structure::{Config, OrchestrationType, Orchestration, Kubernetes, StrAlias, AliasToContainer, ContainerName},
 	file_handler::FileHandler,
-	prompts::{prompter::Prompter, selection::{Options, Selection, SelectionReturn, from_repr}, input::Input}
+	prompts::{prompter::Prompter, selection::{Options, Selection, SelectionReturn, from_repr}, multi_select::ToDefaults, input::Input}
 };
 use crate::{Run, GlobalOptions};
 
@@ -237,7 +237,7 @@ impl <T: Theme> Wizard<'_, T> {
 				SelectionReturn::Selection(Selection { vec_index: 0, options_index }) => {
 					match from_repr!(Prefix, options_index) {
 						Prefix::Add => { self.menu_5_new_container(&mut container_to_alias)?; },
-						Prefix::Remove => todo!("menu_13"),
+						Prefix::Remove => self.menu_13_multi_remove_containers(&mut container_to_alias)?,
 					}
 				},
 				SelectionReturn::Selection(Selection { vec_index: 1, options_index }) => {
@@ -357,7 +357,9 @@ impl <T: Theme> Wizard<'_, T> {
 						return Ok(true);
 					}
 				},
-				SelectionReturn::Selection(Selection { vec_index: 2, options_index }) => todo!("menu_9"),
+				SelectionReturn::Selection(Selection { vec_index: 2, options_index }) => {
+					todo!("menu_9")
+				},
 				SelectionReturn::Return => return Ok(false),
 				SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ }) => unreachable!("edit_container has only 2 elements"),
 				SelectionReturn::Selection(Selection { vec_index: _, options_index: _ }) => unreachable!("options has only 3 elements"),
@@ -387,7 +389,7 @@ impl <T: Theme> Wizard<'_, T> {
 	}
 
 	fn menu_9_edit_aliases(&self) {
-
+		todo!()
 	}
 
 	fn menu_11_rename_container(&self, container_name: &str, container_to_alias: &mut ContainerToAlias) -> Result<Option<RcContainerName>> {
@@ -430,6 +432,41 @@ impl <T: Theme> Wizard<'_, T> {
 
 	fn menu_12_confirm_remove_container(&self, container_name: &str) -> Result<bool> {
 		self.prompter.confirm(format!("Are you sure you want to remove {container_name:?}?"))
+	}
+
+	fn menu_13_multi_remove_containers(&self, container_to_alias: &mut ContainerMapping) -> Result<()> {
+		let mut defaults = None;
+		
+		let selected = loop {
+			let containers = container_to_alias.containers.keys()
+				.map(std::convert::AsRef::as_ref)
+				.collect::<Vec<&str>>();
+			let selected = self.prompter.multi_select(
+				"Remove multiple container names (q to return to previous menu without selecting)",
+				&containers, defaults)?;
+
+			let Some(selected) = selected else {
+				return Ok(());
+			};
+
+
+			if self.menu_14_confirm_remove_containers()? {
+				break selected;
+			}
+
+			defaults = Some(selected.to_defaults(containers.len()));
+		};
+
+		for selected in selected.into_iter().rev() {
+			let removed_container = container_to_alias.containers.shift_remove_index(selected);
+			debug_assert!(removed_container.is_some(), "The index must be pointing to a valid container");
+		}
+		
+		Ok(())
+	}
+
+	fn menu_14_confirm_remove_containers(&self) -> Result<bool> {
+		self.prompter.confirm("Are you sure you want to remove those containers?")
 	}
 }
 

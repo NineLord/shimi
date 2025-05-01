@@ -83,7 +83,7 @@ Container names are sorted by insertion order.
 * `Enter` [14]
 * `q` [4]
 
-## (`Confirm`[14]) Are you sure you want to remove `[<CONTAINER_NAME>]`?
+## (`Confirm`[14]) Are you sure you want to remove those containers?
 * Yes [4]
 * No [13] with the same selected container names.
 
