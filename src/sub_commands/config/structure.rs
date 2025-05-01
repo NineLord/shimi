@@ -10,8 +10,8 @@ pub struct Config {
 	pub orchestration: Orchestration,
 }
 
-pub type Alias = String;
-pub type AliasToContainer = HashMap<Alias, ContainerName>;
+pub type StrAlias = String;
+pub type AliasToContainer = HashMap<StrAlias, ContainerName>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Orchestration {
