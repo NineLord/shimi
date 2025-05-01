@@ -345,17 +345,7 @@ impl <T: Theme> Wizard<'_, T> {
 					}
 				},
 				SelectionReturn::Selection(Selection { vec_index: 1, options_index: 0 }) => {
-					if let Some(new_container_name) = self.menu_11_rename_container(&container_name, &container_to_alias.containers)? {
-						let new_container_name_entry = container_to_alias.containers.insert(Rc::clone(&new_container_name), IndexSet::new());
-						debug_assert!(new_container_name_entry.is_none(), "There shouldn't be an entry for the new container name, it was validated at menu 11");
-						match container_to_alias.containers.swap_remove(&container_name) {
-							Some(prev_aliases) => {
-								let aliases = container_to_alias.containers.get_mut(&new_container_name)
-									.expect("The new container name was just inserted");
-								*aliases = prev_aliases;
-							},
-							None => unreachable!("The current container name must have an entry in the mapping"),
-						}
+					if let Some(new_container_name) = self.menu_11_rename_container(&container_name, &mut container_to_alias.containers)? {
 						container_name = new_container_name;
 					}
 				},
@@ -389,7 +379,7 @@ impl <T: Theme> Wizard<'_, T> {
 		Ok(())
 	}
 
-	fn menu_11_rename_container(&self, container_name: &str, container_to_alias: &ContainerToAlias) -> Result<Option<RcContainerName>> {
+	fn menu_11_rename_container(&self, container_name: &str, container_to_alias: &mut ContainerToAlias) -> Result<Option<RcContainerName>> {
 		let mut is_same_container_name = false;
 		let input = self.prompter.input_with_validation(
 			format!("Choose new container name for {container_name:?} (leave empty to not rename)"),
@@ -408,12 +398,23 @@ impl <T: Theme> Wizard<'_, T> {
 				}
 			})?;
 
-		let result = match input {
-			Input::NoneEmpty(container_name) => Some(Rc::from(container_name)),
-			Input::Empty => None,
+		let new_container_name = match input {
+			Input::NoneEmpty(container_name) => Rc::from(container_name),
+			Input::Empty => return Ok(None),
 		};
 
-		Ok(result)
+		let new_container_name_entry = container_to_alias.insert(Rc::clone(&new_container_name), IndexSet::new());
+		debug_assert!(new_container_name_entry.is_none(), "There shouldn't be an entry for the new container name, it was validated in the input prompt");
+		match container_to_alias.swap_remove(container_name) {
+			Some(prev_aliases) => {
+				let aliases = container_to_alias.get_mut(&new_container_name)
+					.expect("The new container name was just inserted");
+				*aliases = prev_aliases;
+			},
+			None => unreachable!("The current container name must have an entry in the mapping"),
+		}
+
+		Ok(Some(new_container_name))
 	}
 }
 
