@@ -79,6 +79,17 @@ struct ContainerMapping {
 	containers: ContainerToAlias,
 	aliases: Aliases,
 }
+impl ContainerMapping {
+	/// # Panics
+	/// If the given `container_name` doesn't exists in the container mapping.
+	fn get_display_aliases(&self, container_name: &str) -> Vec<String> {
+		self.containers.get(container_name)
+			.expect("The given container_name must be already in the container mapping")
+			.iter()
+			.map(std::string::ToString::to_string)
+			.collect()
+	}
+}
 
 struct Wizard<'cfg, T: Theme> {
 	prompter: Prompter<T>,
@@ -317,11 +328,7 @@ impl <T: Theme> Wizard<'_, T> {
 				format!("✏️ Rename {container_name:?}"),
 				format!("❌ Remove {container_name:?}"),
 			];
-			let containers = container_to_alias.containers.get(&container_name)
-				.expect("The given container_name must be already in the container mapping")
-				.iter()
-				.map(std::string::ToString::to_string)
-				.collect::<Vec<String>>();
+			let containers = container_to_alias.get_display_aliases(&container_name);
 			let options = Options::with_capacity(EditAlias::VARIANTS.len() + containers.len() + 1)
 					.insert_str_refs(EditAlias::VARIANTS)
 					.insert_strings(&edit_container)
@@ -334,7 +341,7 @@ impl <T: Theme> Wizard<'_, T> {
 				SelectionReturn::Selection(Selection { vec_index: 0, options_index }) => {
 					match from_repr!(EditAlias, options_index) {
 						EditAlias::Add => self.menu_6_new_alias(Rc::clone(&container_name), container_to_alias)?,
-						EditAlias::Remove => todo!("menu_8"),
+						EditAlias::Remove => self.menu_8_multi_remove_aliases(&container_name, container_to_alias)?,
 					}
 				},
 				SelectionReturn::Selection(Selection { vec_index: 1, options_index: 0 }) => todo!("menu_11"),
@@ -346,6 +353,26 @@ impl <T: Theme> Wizard<'_, T> {
 			}
 			select = selected;
 		}
+	}
+
+	fn menu_8_multi_remove_aliases(&self, container_name: &str, container_to_alias: &mut ContainerMapping) -> Result<()> {
+		let aliases = container_to_alias.get_display_aliases(container_name);
+		let selected = self.prompter.multi_select(
+			format!("Remove aliases for {container_name:?} (q to return to previous menu without selecting)"),
+			&aliases, None)?;
+
+		let Some(selected) = selected else {
+			return Ok(());
+		};
+
+		let aliases = container_to_alias.containers.get_mut(container_name)
+			.expect("The given container_name must be already in the container mapping");
+		for selected in selected.into_iter().rev() {
+			let removed_alias = aliases.shift_remove_index(selected);
+			debug_assert!(removed_alias.is_some(), "The index must be pointing to a valid alias");
+		}
+		
+		Ok(())
 	}
 }
 
