@@ -52,8 +52,8 @@ lazy_static! {
         time::format_description::parse("[day]/[month]/[year repr:last_two] [hour]:[minute]").unwrap()
     };
 }
-type RcContainerName = Rc<str>;
 
+type RcContainerName = Rc<str>;
 type RcAlias = Rc<str>;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -61,7 +61,6 @@ struct ContainerAlias {
 	pub name: RcAlias,
 	pub ttl: Option<PrimitiveDateTime>
 }
-
 impl Display for ContainerAlias {
 	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match &self.ttl {
@@ -72,6 +71,13 @@ impl Display for ContainerAlias {
             None => write!(formatter, "{}", self.name),
         }
 	}
+}
+
+type ContainerToAlias = IndexMap<RcContainerName, IndexSet<ContainerAlias>>;
+type Aliases = HashSet<Rc<str>>;
+struct ContainerMapping {
+	containers: ContainerToAlias,
+	aliases: Aliases,
 }
 
 struct Wizard<'cfg, T: Theme> {
@@ -341,15 +347,6 @@ impl <T: Theme> Wizard<'_, T> {
 			select = selected;
 		}
 	}
-}
-
-type ContainerToAlias = IndexMap<RcContainerName, IndexSet<ContainerAlias>>;
-
-type Aliases = HashSet<Rc<str>>;
-
-struct ContainerMapping {
-	containers: ContainerToAlias,
-	aliases: Aliases,
 }
 
 impl <T: Theme> Wizard<'_, T> {
