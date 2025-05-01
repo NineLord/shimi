@@ -74,13 +74,13 @@ impl Display for ContainerAlias {
 	}
 }
 
-struct Wizard2<'cfg, T: Theme> {
+struct Wizard<'cfg, T: Theme> {
 	prompter: Prompter<T>,
 	global_options: &'cfg GlobalOptions,
 	config: Config,
 }
 
-impl <'cfg, T: Theme> Wizard2<'cfg, T> {
+impl <'cfg, T: Theme> Wizard<'cfg, T> {
 	pub fn new(global_options: &'cfg GlobalOptions, theme: T) -> Self {
 		Self {
 			prompter: Prompter::new(theme),
@@ -93,7 +93,7 @@ impl <'cfg, T: Theme> Wizard2<'cfg, T> {
 	}
 }
 
-impl <T: Theme> Wizard2<'_, T> {
+impl <T: Theme> Wizard<'_, T> {
 	fn run(mut self) -> Result<Option<Config>> {
 		let result = if self.menu_1_select_category(Selection::default())? {
 			Some(self.config)
@@ -104,7 +104,7 @@ impl <T: Theme> Wizard2<'_, T> {
 	}
 }
 
-impl <T: Theme> Wizard2<'_, T> {
+impl <T: Theme> Wizard<'_, T> {
 	fn menu_1_select_category(&mut self, mut select: Selection) -> Result<bool> {
 		#[derive(EnumString, FromRepr, VariantNames)]
 		#[repr(u8)]
@@ -352,9 +352,9 @@ struct ContainerMapping {
 	aliases: Aliases,
 }
 
-impl <T: Theme> Wizard2<'_, T> {
+impl <T: Theme> Wizard<'_, T> {
 	fn get_reverse_orch_aliases(&self) -> ContainerMapping {
-		Wizard2::<T>::reverse_orch_aliases(&self.config.orchestration.aliases)
+		Wizard::<T>::reverse_orch_aliases(&self.config.orchestration.aliases)
 	}
 
 	/// Generate a mapping from container names to their aliases,
@@ -372,7 +372,7 @@ impl <T: Theme> Wizard2<'_, T> {
 	}
 
 	fn set_restore_orch_aliases(&mut self, reversed_aliases: ContainerToAlias) {
-		self.config.orchestration.aliases = Wizard2::<T>::restore_orch_aliases(reversed_aliases);
+		self.config.orchestration.aliases = Wizard::<T>::restore_orch_aliases(reversed_aliases);
 	}
 
 	/// Reverse a mapping from container names to their aliases,
@@ -400,7 +400,7 @@ impl <T: Theme> Wizard2<'_, T> {
 
 impl Run for Command {
 	fn run(self, global_options: &GlobalOptions) -> Result<()> {
-		if let Some(config) = Wizard2::new(global_options, Self::get_theme()).run()? {
+		if let Some(config) = Wizard::new(global_options, Self::get_theme()).run()? {
 			FileHandler::save(&config, global_options)?;
 		}
 		Ok(())
