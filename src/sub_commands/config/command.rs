@@ -232,7 +232,7 @@ impl <T: Theme> Wizard<'_, T> {
 					.insert_return()
 					.set_selection(&select);
 
-			let selected = self.prompter.fuzzy_select_with_return("Choose container name", &options)?;
+			let mut selected = self.prompter.fuzzy_select_with_return("Choose container name", &options)?;
 			match selected {
 				SelectionReturn::Selection(Selection { vec_index: 0, options_index }) => {
 					match from_repr!(Prefix, options_index) {
@@ -243,12 +243,15 @@ impl <T: Theme> Wizard<'_, T> {
 				SelectionReturn::Selection(Selection { vec_index: 1, options_index }) => {
 					let container = containers.get(options_index)
 						.expect("options_index has to be in range of containers");
-					let container = container.clone();
-					let aliases = container_to_alias.containers.get_mut(&container)
-						.expect("container comes from this map keys");
-					todo!("menu_7")
+					let is_removed = self.menu_7_edit_container(&mut container_to_alias, Rc::clone(container), SelectionReturn::default())?;
+					if is_removed && containers.len() == 1 { // It was the last container
+						selected = SelectionReturn::Return;
+					}
 				},
-				SelectionReturn::Return => return Ok(()),
+				SelectionReturn::Return => {
+					self.set_restore_orch_aliases(container_to_alias.containers);
+					return Ok(())
+				},
 				SelectionReturn::Selection(Selection { vec_index: _, options_index: _ }) => unreachable!("options has only 2 elements"),
 			}
 			select = selected;
@@ -256,7 +259,7 @@ impl <T: Theme> Wizard<'_, T> {
 	}
 
 	/// # Returns
-	/// If true, added a container.
+	/// If `true`, added a container.
 	fn menu_5_new_container(&self, container_to_alias: &mut ContainerMapping) -> Result<bool> {
 		let input = self.prompter.input_with_validation("Choose new container name (leave empty to not add)", None,
 		|container_name: &String | -> Result<(), String> {
@@ -312,7 +315,7 @@ impl <T: Theme> Wizard<'_, T> {
 	}
 
 	/// # Returns
-	/// If true, the container was removed
+	/// If `true`, the container was removed
 	fn menu_7_edit_container(&self, container_to_alias: &mut ContainerMapping, mut container_name: Rc<str>, mut select: SelectionReturn) -> Result<bool> {
 		#[derive(EnumString, FromRepr, VariantNames)]
 		#[repr(u8)]
@@ -328,11 +331,11 @@ impl <T: Theme> Wizard<'_, T> {
 				format!("✏️ Rename {container_name:?}"),
 				format!("❌ Remove {container_name:?}"),
 			];
-			let containers = container_to_alias.get_display_aliases(&container_name);
-			let options = Options::with_capacity(EditAlias::VARIANTS.len() + containers.len() + 1)
+			let aliases = container_to_alias.get_display_aliases(&container_name);
+			let options = Options::with_capacity(EditAlias::VARIANTS.len() + aliases.len() + 1)
 					.insert_str_refs(EditAlias::VARIANTS)
 					.insert_strings(&edit_container)
-					.insert_strings(&containers)
+					.insert_strings(&aliases)
 					.insert_return()
 					.set_selection(&select);
 
@@ -349,7 +352,11 @@ impl <T: Theme> Wizard<'_, T> {
 						container_name = new_container_name;
 					}
 				},
-				SelectionReturn::Selection(Selection { vec_index: 1, options_index: 1 }) => todo!("menu_12"),
+				SelectionReturn::Selection(Selection { vec_index: 1, options_index: 1 }) => {
+					if self.menu_12_confirm_remove_container(&container_name)? {
+						return Ok(true);
+					}
+				},
 				SelectionReturn::Selection(Selection { vec_index: 2, options_index }) => todo!("menu_9"),
 				SelectionReturn::Return => return Ok(false),
 				SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ }) => unreachable!("edit_container has only 2 elements"),
@@ -377,6 +384,10 @@ impl <T: Theme> Wizard<'_, T> {
 		}
 		
 		Ok(())
+	}
+
+	fn menu_9_edit_aliases(&self) {
+
 	}
 
 	fn menu_11_rename_container(&self, container_name: &str, container_to_alias: &mut ContainerToAlias) -> Result<Option<RcContainerName>> {
@@ -415,6 +426,10 @@ impl <T: Theme> Wizard<'_, T> {
 		}
 
 		Ok(Some(new_container_name))
+	}
+
+	fn menu_12_confirm_remove_container(&self, container_name: &str) -> Result<bool> {
+		self.prompter.confirm(format!("Are you sure you want to remove {container_name:?}?"))
 	}
 }
 
