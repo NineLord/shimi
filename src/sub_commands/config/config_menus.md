@@ -59,7 +59,7 @@ Aliases are sorted by insertion order.
 * ❌ Remove alias [7]
 * ➕ Add TTL [15]
   * If TTL already exist will show: ✏️ Edit TTL
-* ❌ Remove TTL [7]
+* ❌ Remove TTL [9]
   * Won't show this if there is no TTL.
 * ↩ Return to previous menu [7]
 

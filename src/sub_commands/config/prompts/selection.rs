@@ -240,12 +240,13 @@ impl <'a> Options<'a> {
 
 //#region Selection
 #[allow(dead_code)]
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct Selection {
 	pub vec_index: usize,
 	pub options_index: usize,
 }
 #[allow(dead_code)]
+#[derive(Clone, Copy)]
 pub enum SelectionReturn {
 	Selection(Selection),
 	Return,

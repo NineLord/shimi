@@ -1,14 +1,14 @@
 use std::{fmt::Display, rc::Rc};
-use tap::prelude::*;
+use humantime::{parse_duration, parse_rfc3339_weak};
 use anyhow::Result;
 use clap::Args;
 use log::{info, warn};
-use time::PrimitiveDateTime;
+use time::{OffsetDateTime, PrimitiveDateTime};
 use colored::Colorize;
 use dialoguer::theme::{ColorfulTheme, Theme};
 use lazy_static::lazy_static;
 use hashbrown::{HashMap, hash_map::Entry, HashSet};
-use indexmap::{IndexMap, IndexSet, map::Entry as IndexEntry};
+use indexmap::{map::Entry as IndexEntry, set::MutableValues, IndexMap, IndexSet};
 use strum::{EnumString, FromRepr, VariantNames};
 use super::{
 	structure::{Config, OrchestrationType, Orchestration, Kubernetes, StrAlias, AliasToContainer, ContainerName},
@@ -50,6 +50,10 @@ impl Command {
 lazy_static! {
     static ref CONTAINER_ALIAS_DATE_FORMAT: Vec<time::format_description::BorrowedFormatItem<'static>> = {
         time::format_description::parse("[day]/[month]/[year repr:last_two] [hour]:[minute]").unwrap()
+    };
+
+	static ref USER_PROMPT_DATE_FORMAT: Vec<time::format_description::BorrowedFormatItem<'static>> = {
+        time::format_description::parse("[year repr:full]-[month]-[day] [hour]:[minute]:[second padding:zero]").unwrap()
     };
 }
 
@@ -121,6 +125,7 @@ impl <T: Theme> Wizard<'_, T> {
 	}
 }
 
+// TODO: probably didn't update the aliases along with the container names
 impl <T: Theme> Wizard<'_, T> {
 	fn menu_1_select_category(&mut self, mut select: Selection) -> Result<bool> {
 		#[derive(EnumString, FromRepr, VariantNames)]
@@ -194,7 +199,6 @@ impl <T: Theme> Wizard<'_, T> {
 	}
 
 	fn menu_3_set_kub_name_space(&mut self) -> Result<bool> {
-		// let y: Option<&str> = self.config.orchestration.kubernetes.and_then(|kub| Some(kub.name_space.as_ref()));
 		let previous_name_space: Option<&str> = match &self.config.orchestration.kubernetes {
 			Some(Kubernetes { name_space }) => Some(name_space.as_ref()),
 			None => None,
@@ -328,7 +332,7 @@ impl <T: Theme> Wizard<'_, T> {
 
 		loop {
 			let edit_container = [
-				format!("✏️ Rename {container_name:?}"),
+				format!("✏️  Rename {container_name:?}"),
 				format!("❌ Remove {container_name:?}"),
 			];
 			let aliases = container_to_alias.get_display_aliases(&container_name);
@@ -339,7 +343,7 @@ impl <T: Theme> Wizard<'_, T> {
 					.insert_return()
 					.set_selection(&select);
 
-			let selected = self.prompter.fuzzy_select_with_return(format!("Editing {container_name:?}"), &options)?;
+			let mut selected = self.prompter.fuzzy_select_with_return(format!("Editing {container_name:?}"), &options)?;
 			match selected {
 				SelectionReturn::Selection(Selection { vec_index: 0, options_index }) => {
 					match from_repr!(EditAlias, options_index) {
@@ -358,7 +362,24 @@ impl <T: Theme> Wizard<'_, T> {
 					}
 				},
 				SelectionReturn::Selection(Selection { vec_index: 2, options_index }) => {
-					todo!("menu_9")
+					let container_aliases = container_to_alias.containers.get_mut(&container_name)
+						.expect("container_name must be inside container mapping");
+					let alias = container_aliases
+						.get_index_mut2(options_index)
+						.expect("selection must be inside aliases ; aliases must be same order as container mapping");
+					let is_removed = self.menu_9_edit_aliases(&container_name, alias, &mut container_to_alias.aliases, SelectionReturn::default())?;
+					if is_removed {
+						let removed_alias = container_aliases.shift_remove_index(options_index);
+						if let Some(removed_alias) = removed_alias {
+							let is_removed = container_to_alias.aliases.remove(&removed_alias.name);
+							debug_assert!(is_removed, "an alias is suppose to be removed from aliases");
+						} else {
+							unreachable!("An alias is suppose to be removed from container");
+						}
+						if aliases.len() == 1 { // It was the last alias
+							selected = SelectionReturn::Return;
+						}
+					}
 				},
 				SelectionReturn::Return => return Ok(false),
 				SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ }) => unreachable!("edit_container has only 2 elements"),
@@ -388,8 +409,82 @@ impl <T: Theme> Wizard<'_, T> {
 		Ok(())
 	}
 
-	fn menu_9_edit_aliases(&self) {
-		todo!()
+	/// # Returns
+	/// If `true`, the alias needs to be removed.
+	fn menu_9_edit_aliases(&self, container_name: &str, alias: &mut ContainerAlias, aliases: &mut Aliases, mut select: SelectionReturn) -> Result<bool> {
+		#[derive(EnumString, FromRepr, VariantNames)]
+		#[repr(u8)]
+		enum EditAlias {
+			#[strum(serialize = "✏️  Rename alias")]
+			Rename,
+			#[strum(serialize = "❌ Remove alias")]
+			Remove,
+		}
+
+		loop {
+			let edit_ttl = if alias.ttl.is_some() {
+				vec!["✏️  Edit TTL", "❌ Remove TTL"]
+			} else {
+				vec!["➕ Add TTL"]
+			};
+			let options = Options::with_capacity(EditAlias::VARIANTS.len() + edit_ttl.len() + 1)
+					.insert_str_refs(EditAlias::VARIANTS)
+					.insert_str_refs(&edit_ttl)
+					.insert_return()
+					.set_selection(&select);
+
+			let selected = self.prompter.select_with_return(format!("Editing {:?} for {container_name:?}", alias.name), &options)?;
+			match (&mut alias.ttl, selected) {
+				(_, SelectionReturn::Selection(Selection { vec_index: 0, options_index })) => {
+					match from_repr!(EditAlias, options_index) {
+						EditAlias::Rename => self.menu_10_rename_alias(container_name, alias, aliases)?,
+						EditAlias::Remove => return Ok(true),
+					}
+				},
+				(ttl, SelectionReturn::Selection(Selection { vec_index: 1, options_index: 0 })) => self.menu_15_edit_ttl(container_name, &alias.name, ttl)?,
+				(Some(_), SelectionReturn::Selection(Selection { vec_index: 1, options_index: 1 })) => alias.ttl = None,
+				(_, SelectionReturn::Return) => return Ok(false),
+				(Some(_), SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ })) => unreachable!("edit_ttl with ttl has only 2 options"),
+				(None, SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ })) => unreachable!("edit_ttl without ttl has only 1 options"),
+				(_, SelectionReturn::Selection(Selection { vec_index: _, options_index: _ })) => unreachable!("options has only 3 elements"),
+			}
+			select = selected;
+		}
+	}
+
+	fn menu_10_rename_alias(&self, container_name: &str, alias: &mut ContainerAlias, aliases: &mut Aliases) -> Result<()> {
+		let mut is_same_alias_name = false;
+		let input = self.prompter.input_with_validation(
+			format!("Choose new alias for {:?} of {container_name:?} (leave empty to not rename)", alias.name),
+			Some(&alias.name),
+			|new_alias: &String | -> Result<(), String> {
+				let new_alias = new_alias.trim();
+				if new_alias.is_empty() {
+					Ok(())
+				} else if alias.name.as_ref() == new_alias {
+					is_same_alias_name = true;
+					Ok(())
+				} else if aliases.contains(new_alias) {
+					Err(format!("The alias {new_alias:?} already exists"))
+				} else {
+					Ok(())
+				}
+			})?;
+
+		if is_same_alias_name {
+			return Ok(());
+		}
+
+		let new_alias = match input {
+			Input::NoneEmpty(alias) => Rc::from(alias),
+			Input::Empty => return Ok(()),
+		};
+
+		aliases.remove(&alias.name);
+		alias.name = new_alias;
+		aliases.insert(Rc::clone(&alias.name));
+
+		Ok(())
 	}
 
 	fn menu_11_rename_container(&self, container_name: &str, container_to_alias: &mut ContainerToAlias) -> Result<Option<RcContainerName>> {
@@ -410,6 +505,10 @@ impl <T: Theme> Wizard<'_, T> {
 					Ok(())
 				}
 			})?;
+		
+		if is_same_container_name {
+			return Ok(None);
+		}
 
 		let new_container_name = match input {
 			Input::NoneEmpty(container_name) => Rc::from(container_name),
@@ -467,6 +566,86 @@ impl <T: Theme> Wizard<'_, T> {
 
 	fn menu_14_confirm_remove_containers(&self) -> Result<bool> {
 		self.prompter.confirm("Are you sure you want to remove those containers?")
+	}
+
+	fn menu_15_edit_ttl(&self, container_name: &str, alias: &str, ttl: &mut Option<PrimitiveDateTime>) -> Result<()> {
+		const HELP_SYNTAX: &str = "
+Syntax for Durations:
+* `nsec`, `ns` -- nanoseconds
+* `usec`, `us` -- microseconds
+* `msec`, `ms` -- milliseconds
+* `seconds`, `second`, `sec`, `s`
+* `minutes`, `minute`, `min`, `m`
+* `hours`, `hour`, `hr`, `h`
+* `days`, `day`, `d`
+* `weeks`, `week`, `w`
+* `months`, `month`, `M` -- defined as 30.44 days
+* `years`, `year`, `y` -- defined as 365.25 days
+Example:
+`2h 37min`
+`32ms`
+
+Syntax for Timestamp (RFC3339-like):
+1. Any precision of fractional digits `2018-02-14 00:28:07.133`.
+2. Supports timestamp with or without either of `T` or `Z`.
+3. Anything valid for [`parse_rfc3339`](parse_rfc3339) is valid.
+4. Only UTC is supported, even if `Z` is not specified.
+Example:
+`1994-10-25 16:45:00`";
+
+		let prompt = if ttl.is_some() {
+			format!("Editing TTL for {alias:?} of {container_name:?} (type 'help' for syntax, leave empty to not change the TTL)")
+		} else {
+			format!("Adding TTL for {alias:?} of {container_name:?} (type 'help' for syntax, leave empty to not add TTL)")
+		};
+
+		// TODO: PrimitiveDateTime saves my local time? converting to utc will cause problems
+		// TODO: parsing from utc could also cause problems
+
+		let pretty_ttl = match ttl {
+			Some(ttl) => Some(ttl.format(&USER_PROMPT_DATE_FORMAT)?),
+			None => None,
+		};
+
+		let mut parsed_input = None;
+		let input = self.prompter.input_with_validation(
+			prompt,
+			pretty_ttl.as_ref().map(std::convert::AsRef::as_ref),
+			|new_ttl: &String | -> Result<(), &'static str> {
+				let new_ttl = new_ttl.trim();
+				if new_ttl.is_empty() {
+					Ok(())
+				} else if let Ok(std_duration) = parse_duration(new_ttl) {
+					let Ok(time_duration) = time::Duration::try_from(std_duration) else {
+						return Err("Something went wrong with the conversion the duration");
+					};
+					let Ok(now) = OffsetDateTime::now_local() else {
+						return Err("Can't get local time, try to set TTL with timestamp syntax instead of duration");
+					};
+					let now = PrimitiveDateTime::new(now.date(), now.time());
+					let Some(result) = now.checked_add(time_duration) else {
+						return Err("The given duration is too far into the future");
+					};
+					parsed_input = Some(result);
+					Ok(())
+				} else if let Ok(timestamp) = parse_rfc3339_weak(new_ttl) {
+					let timestamp = OffsetDateTime::from(timestamp);
+					parsed_input = Some(PrimitiveDateTime::new(timestamp.date(), timestamp.time()));
+					Ok(())
+				} else {
+					Err(HELP_SYNTAX)
+				}
+			})?;
+
+		let new_ttl = match (input, parsed_input) {
+			(Input::NoneEmpty(_), Some(new_ttl)) => new_ttl,
+			(Input::Empty, None) => return Ok(()),
+			(Input::Empty, Some(_)) | (Input::NoneEmpty(_), None) => unreachable!("Invalid state due to the validator"),
+		};
+
+		*ttl = Some(new_ttl);
+
+		Ok(())
 	}
 }
 
