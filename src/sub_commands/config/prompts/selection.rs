@@ -1,15 +1,17 @@
-use std::rc::Rc;
+use std::{fmt::Debug, rc::Rc};
 use state_shift::{type_state, impl_state};
 
 const RETURN: &str = "↩ Return to previous menu";
 
 //#region Options
 #[allow(dead_code)]
+#[derive(Debug)]
 pub(super) enum Item<'a> {
 	Str(&'a str),
 	String(String),
 }
 #[allow(dead_code)]
+#[derive(Debug)]
 pub(super) enum Items<'a> {
 	StrRefs(&'a [&'a str]),
 	Strings(&'a [String]),
@@ -27,6 +29,7 @@ impl Items<'_> {
 	}
 }
 #[allow(dead_code)]
+#[derive(Debug)]
 pub(super) enum AnyItem<'a> {
 	Item(Item<'a>, bool),
 	Items(Items<'a>, Option<usize>),
@@ -234,6 +237,18 @@ impl <'a> Options<'a> {
 				}
 			},
 		}
+	}
+}
+
+impl Debug for Options<'_, SelectedReturn> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f
+			.debug_struct("Options")
+			.field("items", &self.items)
+			.field("is_return", &self.is_return)
+			.field("selected", &self.selected)
+			.field("_state", &self._state)
+			.finish()
 	}
 }
 //#endregion

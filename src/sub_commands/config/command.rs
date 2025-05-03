@@ -433,7 +433,7 @@ impl <T: Theme> Wizard<'_, T> {
 					.insert_return()
 					.set_selection(&select);
 
-			let selected = self.prompter.select_with_return(format!("Editing {:?} for {container_name:?}", alias.name), &options)?;
+			let mut selected = self.prompter.select_with_return(format!("Editing {:?} for {container_name:?}", alias.name), &options)?;
 			match (&mut alias.ttl, selected) {
 				(_, SelectionReturn::Selection(Selection { vec_index: 0, options_index })) => {
 					match from_repr!(EditAlias, options_index) {
@@ -442,7 +442,10 @@ impl <T: Theme> Wizard<'_, T> {
 					}
 				},
 				(ttl, SelectionReturn::Selection(Selection { vec_index: 1, options_index: 0 })) => self.menu_15_edit_ttl(container_name, &alias.name, ttl)?,
-				(Some(_), SelectionReturn::Selection(Selection { vec_index: 1, options_index: 1 })) => alias.ttl = None,
+				(Some(_), SelectionReturn::Selection(Selection { vec_index: 1, options_index: 1 })) => {
+					alias.ttl = None;
+					selected = SelectionReturn::Selection(Selection { vec_index: 1, options_index: 0 });
+				},
 				(_, SelectionReturn::Return) => return Ok(false),
 				(Some(_), SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ })) => unreachable!("edit_ttl with ttl has only 2 options"),
 				(None, SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ })) => unreachable!("edit_ttl without ttl has only 1 options"),
