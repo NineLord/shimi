@@ -48,13 +48,6 @@ impl Command {
 	}
 }
 
-lazy_static! {
-	static ref USER_PROMPT_DATE_FORMAT: Vec<time::format_description::BorrowedFormatItem<'static>> = {
-        time::format_description::parse("[year repr:full]-[month]-[day] [hour]:[minute]:[second padding:zero]").unwrap()
-    };
-}
-
-
 struct Wizard<'cfg, T: Theme> {
 	prompter: Prompter<T>,
 	global_options: &'cfg GlobalOptions,
@@ -316,13 +309,9 @@ impl <T: Theme> Wizard<'_, T> {
 					}
 				},
 				SelectionReturn::Selection(Selection { vec_index: 2, options_index }) => {
-					let container_aliases = container_to_alias.containers.get_mut(&container_name)
-						.expect("container_name must be inside container mapping");
-					let alias = container_aliases
-						.get_index_mut2(options_index)
-						.expect("selection must be inside aliases ; aliases must be same order as container mapping");
-					let is_removed = self.menu_9_edit_aliases(&container_name, alias, &mut container_to_alias.aliases, SelectionReturn::default())?;
-					if is_removed {
+					let mut alias_entry = container_to_alias.entry_alias_index(Rc::clone(&container_name), options_index); // TODO: need to clone container_name?
+					let is_need_to_be_removed = self.menu_9_edit_aliases(alias_entry, SelectionReturn::default())?;
+					if is_need_to_be_removed {
 						let removed_alias = container_aliases.shift_remove_index(options_index);
 						if let Some(removed_alias) = removed_alias {
 							let is_removed = container_to_alias.aliases.remove(&removed_alias.name);
@@ -360,7 +349,7 @@ impl <T: Theme> Wizard<'_, T> {
 
 	/// # Returns
 	/// If `true`, the alias needs to be removed.
-	fn menu_9_edit_aliases(&self, container_name: &str, alias: &mut ContainerAlias, aliases: &mut Aliases, mut select: SelectionReturn) -> Result<bool> {
+	fn menu_9_edit_aliases(&self, mut alias_entry: AliasEntry<'_>, mut select: SelectionReturn) -> Result<bool> {
 		#[derive(EnumString, FromRepr, VariantNames)]
 		#[repr(u8)]
 		enum EditAlias {
@@ -371,7 +360,8 @@ impl <T: Theme> Wizard<'_, T> {
 		}
 
 		loop {
-			let edit_ttl = if alias.ttl.is_some() {
+			let has_ttl = alias_entry.has_ttl();
+			let edit_ttl = if has_ttl {
 				vec!["✏️  Edit TTL", "❌ Remove TTL"]
 			} else {
 				vec!["➕ Add TTL"]
@@ -382,41 +372,43 @@ impl <T: Theme> Wizard<'_, T> {
 					.insert_return()
 					.set_selection(&select);
 
-			let mut selected = self.prompter.select_with_return(format!("Editing {:?} for {container_name:?}", alias.name), &options)?;
-			match (&mut alias.ttl, selected) {
+			let mut selected = self.prompter.select_with_return(format!("Editing {:?} for {:?}", alias_entry.get_name(), alias_entry.get_container_name()), &options)?;
+			match (has_ttl, selected) {
 				(_, SelectionReturn::Selection(Selection { vec_index: 0, options_index })) => {
 					match from_repr!(EditAlias, options_index) {
-						EditAlias::Rename => self.menu_10_rename_alias(container_name, alias, aliases)?,
+						EditAlias::Rename => self.menu_10_rename_alias(&mut alias_entry)?,
 						EditAlias::Remove => return Ok(true),
 					}
 				},
-				(ttl, SelectionReturn::Selection(Selection { vec_index: 1, options_index: 0 })) => self.menu_15_edit_ttl(container_name, &alias.name, ttl)?,
-				(Some(_), SelectionReturn::Selection(Selection { vec_index: 1, options_index: 1 })) => {
-					alias.ttl = None;
+				(_, SelectionReturn::Selection(Selection { vec_index: 1, options_index: 0 })) => self.menu_15_edit_ttl(&mut alias_entry)?,
+				(true, SelectionReturn::Selection(Selection { vec_index: 1, options_index: 1 })) => {
+					alias_entry.remove_ttl();
 					selected = SelectionReturn::Selection(Selection { vec_index: 1, options_index: 0 });
 				},
 				(_, SelectionReturn::Return) => return Ok(false),
-				(Some(_), SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ })) => unreachable!("edit_ttl with ttl has only 2 options"),
-				(None, SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ })) => unreachable!("edit_ttl without ttl has only 1 options"),
+
+				(false, SelectionReturn::Selection(Selection { vec_index: 1, options_index: 1 })) => unreachable!("Can't remove TTL if it doesn't have TTL"),
+				(true, SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ })) => unreachable!("edit_ttl with ttl has only 2 options"),
+				(false, SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ })) => unreachable!("edit_ttl without ttl has only 1 option"),
 				(_, SelectionReturn::Selection(Selection { vec_index: _, options_index: _ })) => unreachable!("options has only 3 elements"),
 			}
 			select = selected;
 		}
 	}
 
-	fn menu_10_rename_alias(&self, container_name: &str, alias: &mut ContainerAlias, aliases: &mut Aliases) -> Result<()> {
+	fn menu_10_rename_alias(&self, alias: &mut AliasEntry<'_>) -> Result<()> {
 		let mut is_same_alias_name = false;
 		let input = self.prompter.input_with_validation(
-			format!("Choose new alias for {:?} of {container_name:?} (leave empty to not rename)", alias.name),
-			Some(&alias.name),
+			format!("Choose new alias for {:?} of {:?} (leave empty to not rename)", alias.get_name(), alias.get_container_name()),
+			Some(&alias.get_name()),
 			|new_alias: &String | -> Result<(), String> {
 				let new_alias = new_alias.trim();
 				if new_alias.is_empty() {
 					Ok(())
-				} else if alias.name.as_ref() == new_alias {
+				} else if alias.get_name() == new_alias {
 					is_same_alias_name = true;
 					Ok(())
-				} else if aliases.contains(new_alias) {
+				} else if alias.contains_alias(new_alias) {
 					Err(format!("The alias {new_alias:?} already exists"))
 				} else {
 					Ok(())
@@ -432,9 +424,7 @@ impl <T: Theme> Wizard<'_, T> {
 			Input::Empty => return Ok(()),
 		};
 
-		aliases.remove(&alias.name);
-		alias.name = new_alias;
-		aliases.insert(Rc::clone(&alias.name));
+		alias.rename(new_alias);
 
 		Ok(())
 	}
@@ -506,7 +496,7 @@ impl <T: Theme> Wizard<'_, T> {
 		self.prompter.confirm("Are you sure you want to remove those containers?")
 	}
 
-	fn menu_15_edit_ttl(&self, container_name: &str, alias: &str, ttl: &mut Option<PrimitiveDateTime>) -> Result<()> {
+	fn menu_15_edit_ttl(&self, alias_entry: &mut AliasEntry<'_>) -> Result<()> {
 		const HELP_SYNTAX: &str = "
 Syntax for Durations:
 * `nsec`, `ns` -- nanoseconds
@@ -531,24 +521,16 @@ Syntax for Timestamp (RFC3339-like):
 Example:
 `1994-10-25 16:45:00`";
 
-		let prompt = if ttl.is_some() {
-			format!("Editing TTL for {alias:?} of {container_name:?} (type 'help' for syntax, leave empty to not change the TTL)")
+		let prompt = if alias_entry.has_ttl() {
+			format!("Editing TTL for {:?} of {:?} (type 'help' for syntax, leave empty to not change the TTL)", alias_entry.get_name(), alias_entry.get_container_name())
 		} else {
-			format!("Adding TTL for {alias:?} of {container_name:?} (type 'help' for syntax, leave empty to not add TTL)")
-		};
-
-		// TODO: PrimitiveDateTime saves my local time? converting to utc will cause problems
-		// TODO: parsing from utc could also cause problems
-
-		let pretty_ttl = match ttl {
-			Some(ttl) => Some(ttl.format(&USER_PROMPT_DATE_FORMAT)?),
-			None => None,
+			format!("Adding TTL for {:?} of {:?} (type 'help' for syntax, leave empty to not add TTL)", alias_entry.get_name(), alias_entry.get_container_name())
 		};
 
 		let mut parsed_input = None;
 		let input = self.prompter.input_with_validation(
 			prompt,
-			pretty_ttl.as_ref().map(std::convert::AsRef::as_ref),
+			alias_entry.get_ttl_as_user_prompt()?.as_ref().map(std::convert::AsRef::as_ref),
 			|new_ttl: &String | -> Result<(), &'static str> {
 				let new_ttl = new_ttl.trim();
 				if new_ttl.is_empty() {
@@ -581,7 +563,7 @@ Example:
 			(Input::Empty, Some(_)) | (Input::NoneEmpty(_), None) => unreachable!("Invalid state due to the validator"),
 		};
 
-		*ttl = Some(new_ttl);
+		alias_entry.set_ttl(new_ttl);
 
 		Ok(())
 	}

@@ -1,7 +1,8 @@
 use std::{fmt::Display, rc::Rc, hash::Hash};
+use anyhow::Result;
 use log::warn;
 use hashbrown::{HashMap, hash_map::Entry as HashbrownMapEntry, HashSet, Equivalent as EquivalentHashbrown};
-use indexmap::{Equivalent as EquivalentIndexMap, IndexMap, IndexSet};
+use indexmap::{set::MutableValues, Equivalent as EquivalentIndexMap, IndexMap, IndexSet};
 use time::PrimitiveDateTime;
 use lazy_static::lazy_static;
 use super::structure::{AliasToContainer, ContainerName};
@@ -10,11 +11,17 @@ lazy_static! {
     static ref CONTAINER_ALIAS_DATE_FORMAT: Vec<time::format_description::BorrowedFormatItem<'static>> = {
         time::format_description::parse("[day]/[month]/[year repr:last_two] [hour]:[minute]").unwrap()
     };
+
+	static ref USER_PROMPT_DATE_FORMAT: Vec<time::format_description::BorrowedFormatItem<'static>> = {
+        time::format_description::parse("[year repr:full]-[month]-[day] [hour]:[minute]:[second padding:zero]").unwrap()
+    };
 }
 
 pub type RcContainerName = Rc<str>;
 pub type RcAlias = Rc<str>;
 pub type Ttl = Option<PrimitiveDateTime>;
+pub type TtlRef<'a> = Option<&'a PrimitiveDateTime>;
+pub type TtlMutRef<'a> = Option<&'a mut PrimitiveDateTime>;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct ContainerAlias {
@@ -96,10 +103,46 @@ impl ContainerMapping {
 	/// If the given `container_name` doesn't exists in the container mapping.
 	pub fn get_display_aliases(&self, container_name: &str) -> Vec<String> {
 		self.containers.get(container_name)
-			.expect("The given container_name must be already in the container mapping")
+			.expect("The given container_name must already exists")
 			.iter()
 			.map(std::string::ToString::to_string)
 			.collect()
+	}
+}
+
+impl ContainerMapping {
+	pub fn entry_alias_index(&mut self, container_name: Rc<str>, alias_index: usize) -> AliasEntry<'_> {
+		let alias = self.containers.get_mut(&container_name)
+			.expect("The given container_name must already exists")
+			.get_index_mut2(alias_index)
+			.expect("The given alias must already exists");
+		AliasEntry { container_name, alias, aliases: &mut self.aliases }
+	}
+}
+
+impl ContainerMapping {
+	/// # Panics
+	/// If the given `container_name` doesn't exists.
+	/// If the given `alias_index` doesn't exists.
+	pub fn get_alias_name(&self, container_name: &str, alias_index: usize) -> &str {
+		self.containers.get(container_name)
+			.expect("The given container_name must already exists")
+			.get_index(alias_index)
+			.expect("The given alias must already exists")
+			.name
+			.as_ref()
+	}
+
+	/// # Panics
+	/// If the given `container_name` doesn't exists.
+	/// If the given `alias_index` doesn't exists.
+	pub fn get_mut_alias_ttl(&mut self, container_name: &str, alias_index: usize) -> TtlMutRef {
+		self.containers.get_mut(container_name)
+			.expect("The given container_name must already exists")
+			.get_index_mut2(alias_index)
+			.expect("The given alias must already exists")
+			.ttl
+			.as_mut()
 	}
 }
 
@@ -198,5 +241,61 @@ impl ContainerMapping {
 				debug_assert!(is_removed, "The given alias existed in the self.containers but not in the self.aliases");
 			}
 		}
+	}
+}
+
+pub struct AliasEntry<'a> {
+	container_name: RcContainerName,
+	alias: &'a mut ContainerAlias,
+	aliases: &'a mut Aliases,
+}
+
+impl AliasEntry<'_> {
+	#[inline]
+	pub fn has_ttl(&self) -> bool {
+		self.alias.ttl.is_some()
+	}
+
+	pub fn get_ttl_as_user_prompt(&self) -> Result<Option<String>> {
+		// TODO: PrimitiveDateTime saves my local time? converting to utc will cause problems
+		// TODO: parsing from utc could also cause problems
+		let result = match self.alias.ttl {
+			Some(ttl) => Some(ttl.format(&USER_PROMPT_DATE_FORMAT)?),
+			None => None,
+		};
+		Ok(result)
+	}
+
+	// #[inline]
+	// pub fn get_mut_ttl(&mut self) -> &mut Ttl {
+	// 	&mut self.alias.ttl
+	// }
+
+	#[inline]
+	pub fn get_container_name(&self) -> &str {
+		self.container_name.as_ref()
+	}
+
+	#[inline]
+	pub fn get_name(&self) -> &str {
+		self.alias.name.as_ref()
+	}
+
+	pub fn contains_alias<A: ?Sized + Hash + EquivalentHashbrown<Rc<str>>>(&self, alias: &A) -> bool {
+		self.aliases.contains(alias)
+	}
+
+	pub fn set_ttl(&mut self, new: PrimitiveDateTime) {
+		self.alias.ttl.insert(new);
+	}
+
+	pub fn remove_ttl(&mut self) {
+		self.alias.ttl = None;
+	}
+
+	pub fn rename(&mut self, new: RcAlias) {
+		self.aliases.remove(&self.alias.name);
+		self.alias.name = new;
+		self.aliases.insert(Rc::clone(&self.alias.name));
 	}
 }
