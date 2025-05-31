@@ -307,12 +307,14 @@ impl <T: Theme> Wizard<'_, T> {
 				},
 				SelectionReturn::Selection(Selection { vec_index: 2, options_index }) => {
 					let alias_entry = container_to_alias.entry_alias_index(Rc::clone(&container_name), options_index); // TODO: need to clone container_name?
-					let is_need_to_be_removed = self.menu_9_edit_aliases(alias_entry, SelectionReturn::default())?;
+					let is_need_to_be_removed = self.menu_9_edit_alias(alias_entry, SelectionReturn::default())?;
 					if is_need_to_be_removed {
 						container_to_alias.shift_remove_index_alias(&container_name, options_index);
 					}
 					if aliases.len() == 1 { // It was the last alias
 						selected = SelectionReturn::Return;
+					} else if options_index == aliases.len() -1 {
+						selected = SelectionReturn::Selection(Selection { vec_index: 2, options_index: options_index - 1 });
 					}
 				},
 				SelectionReturn::Return => return Ok(false),
@@ -340,7 +342,7 @@ impl <T: Theme> Wizard<'_, T> {
 
 	/// # Returns
 	/// If `true`, the alias needs to be removed.
-	fn menu_9_edit_aliases(&self, mut alias_entry: AliasEntry<'_>, mut select: SelectionReturn) -> Result<bool> {
+	fn menu_9_edit_alias(&self, mut alias_entry: AliasEntry<'_>, mut select: SelectionReturn) -> Result<bool> {
 		#[derive(EnumString, FromRepr, VariantNames)]
 		#[repr(u8)]
 		enum EditAlias {
