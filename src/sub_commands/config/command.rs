@@ -8,10 +8,7 @@ use colored::Colorize;
 use dialoguer::theme::{ColorfulTheme, Theme};
 use strum::{EnumString, FromRepr, VariantNames};
 use super::{
-	structure::{Config, OrchestrationType, Kubernetes},
-	edit_structure::{AliasEntry, ContainerMapping, RcContainerName},
-	file_handler::FileHandler,
-	prompts::{prompter::Prompter, selection::{Options, Selection, SelectionReturn, from_repr}, multi_select::ToDefaults, input::Input}
+	edit_structure::{AliasEntry, ContainerMapping, RcAlias, RcContainerName, Ttl}, file_handler::FileHandler, prompts::{input::Input, multi_select::ToDefaults, prompter::Prompter, selection::{from_repr, Options, Selection, SelectionReturn}}, structure::{Config, Kubernetes, OrchestrationType}
 };
 use crate::{Run, GlobalOptions};
 
@@ -230,8 +227,11 @@ impl <T: Theme> Wizard<'_, T> {
 		let result = match input {
 			Input::NoneEmpty(container_name) => {
 				let container_name = Rc::from(container_name);
-				self.menu_6_new_alias(Rc::clone(&container_name), container_to_alias)?;
-				!self.menu_7_edit_container(container_to_alias, container_name, SelectionReturn::default())?
+				if self.menu_16_new_container_new_alias(Rc::clone(&container_name), container_to_alias)? {
+					!self.menu_7_edit_container(container_to_alias, container_name, SelectionReturn::default())?
+				} else {
+					false
+				}
 			},
 			Input::Empty => false,
 		};
@@ -239,7 +239,7 @@ impl <T: Theme> Wizard<'_, T> {
 		Ok(result)
 	}
 
-	fn menu_6_new_alias(&self, container_name: Rc<str>, container_to_alias: &mut ContainerMapping) -> Result<()> {
+	fn prompt_new_alias(&self, container_name: &str, container_to_alias: &ContainerMapping) -> Result<Option<(RcAlias, Ttl)>> {
 		let input = self.prompter.input_with_validation(format!("Choose new alias for {container_name:?} (leave empty to not add)"), None,
 		|alias: &String | -> Result<(), String> {
 			let alias = alias.trim();
@@ -254,12 +254,29 @@ impl <T: Theme> Wizard<'_, T> {
 
 		let alias = match input {
 			Input::NoneEmpty(alias) => Rc::from(alias),
-			Input::Empty => return Ok(()),
+			Input::Empty => return Ok(None),
 		};
 
-		container_to_alias.insert_new_container_and_alias(container_name, alias, None); // TODO: add TTL here
+		Ok(Some((alias, None))) // TODO: add TTL here
+	}
+
+	fn menu_6_new_alias(&self, container_name: &str, container_to_alias: &mut ContainerMapping) -> Result<()> {
+		if let Some((alias, ttl)) = self.prompt_new_alias(container_name, container_to_alias)? {
+			container_to_alias.insert_new_alias(container_name, alias, ttl);
+		}
 
 		Ok(())
+	}
+
+	/// # Returns
+	/// If `true`, the container was added.
+	fn menu_16_new_container_new_alias(&self, container_name: Rc<str>, container_to_alias: &mut ContainerMapping) -> Result<bool> {
+		if let Some((alias, ttl)) = self.prompt_new_alias(&container_name, container_to_alias)? {
+			container_to_alias.insert_new_container_and_alias(container_name, alias, ttl);
+			Ok(true)
+		} else {
+			Ok(false)
+		}
 	}
 
 	/// # Returns
@@ -291,7 +308,7 @@ impl <T: Theme> Wizard<'_, T> {
 			match selected {
 				SelectionReturn::Selection(Selection { vec_index: 0, options_index }) => {
 					match from_repr!(EditAlias, options_index) {
-						EditAlias::Add => self.menu_6_new_alias(Rc::clone(&container_name), container_to_alias)?,
+						EditAlias::Add => self.menu_6_new_alias(&container_name, container_to_alias)?,
 						EditAlias::Remove => self.menu_8_multi_remove_aliases(&container_name, container_to_alias)?,
 					}
 				},

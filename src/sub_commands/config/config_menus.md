@@ -29,10 +29,14 @@ Container names are sorted by insertion order.
 
 ## (`Input`[5]) Choose new container name (leave empty to not add)
 * Empty [4]
-* None-Empty after Trim [6]
+* None-Empty after Trim [16]
 
 ## (`Input`[6]) Choose new alias for `<CONTAINER_NAME>` (leave empty to not add)
 * Empty [7]
+* None-Empty after Trim [7]
+
+## (`Input`[16]) Choose new alias for `<CONTAINER_NAME>` (leave empty to not add)
+* Empty [4]
 * None-Empty after Trim [7]
 
 ## (`FuzzySelect`[7]) Editing `<CONTAINER_NAME>`

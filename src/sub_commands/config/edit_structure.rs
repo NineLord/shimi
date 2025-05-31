@@ -167,7 +167,7 @@ impl ContainerMapping {
 	/// # Panics
 	/// * If the given `container_name` doesn't exists.
 	/// * If the given `alias` already exists.
-	pub fn insert_new_alias(&mut self, container_name: &str, alias: RcAlias, ttl: Ttl) { // TODO: use this
+	pub fn insert_new_alias(&mut self, container_name: &str, alias: RcAlias, ttl: Ttl) {
 		let aliases = self.containers.get_mut(container_name)
 			.expect("The given container_name doesn't exists");
 		Self::insert_new_alias_helper(&mut self.aliases, aliases, alias, ttl);
