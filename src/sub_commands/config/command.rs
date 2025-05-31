@@ -1,4 +1,4 @@
-use std::{fmt::Display, rc::Rc};
+use std::rc::Rc;
 use humantime::{parse_duration, parse_rfc3339_weak};
 use anyhow::Result;
 use clap::Args;
@@ -12,6 +12,7 @@ use indexmap::{map::Entry as IndexEntry, set::MutableValues, IndexMap, IndexSet}
 use strum::{EnumString, FromRepr, VariantNames};
 use super::{
 	structure::{Config, OrchestrationType, Orchestration, Kubernetes, StrAlias, AliasToContainer, ContainerName},
+	edit_structure::*,
 	file_handler::FileHandler,
 	prompts::{prompter::Prompter, selection::{Options, Selection, SelectionReturn, from_repr}, multi_select::ToDefaults, input::Input}
 };
@@ -48,53 +49,11 @@ impl Command {
 }
 
 lazy_static! {
-    static ref CONTAINER_ALIAS_DATE_FORMAT: Vec<time::format_description::BorrowedFormatItem<'static>> = {
-        time::format_description::parse("[day]/[month]/[year repr:last_two] [hour]:[minute]").unwrap()
-    };
-
 	static ref USER_PROMPT_DATE_FORMAT: Vec<time::format_description::BorrowedFormatItem<'static>> = {
         time::format_description::parse("[year repr:full]-[month]-[day] [hour]:[minute]:[second padding:zero]").unwrap()
     };
 }
 
-type RcContainerName = Rc<str>;
-type RcAlias = Rc<str>;
-
-#[derive(Debug, Hash, PartialEq, Eq)]
-struct ContainerAlias {
-	pub name: RcAlias,
-	pub ttl: Option<PrimitiveDateTime>
-}
-impl Display for ContainerAlias {
-	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match &self.ttl {
-			Some(ttl) => write!(formatter, "{} (TTL: {})",
-				self.name,
-                ttl.format(&CONTAINER_ALIAS_DATE_FORMAT).unwrap()
-            ),
-            None => write!(formatter, "{}", self.name),
-        }
-	}
-}
-
-type ContainerToAlias = IndexMap<RcContainerName, IndexSet<ContainerAlias>>;
-type Aliases = HashSet<Rc<str>>;
-#[derive(Debug)]
-struct ContainerMapping {
-	containers: ContainerToAlias,
-	aliases: Aliases,
-}
-impl ContainerMapping {
-	/// # Panics
-	/// If the given `container_name` doesn't exists in the container mapping.
-	fn get_display_aliases(&self, container_name: &str) -> Vec<String> {
-		self.containers.get(container_name)
-			.expect("The given container_name must be already in the container mapping")
-			.iter()
-			.map(std::string::ToString::to_string)
-			.collect()
-	}
-}
 
 struct Wizard<'cfg, T: Theme> {
 	prompter: Prompter<T>,
@@ -230,7 +189,7 @@ impl <T: Theme> Wizard<'_, T> {
 
 		let mut container_to_alias = self.get_reverse_orch_aliases();
 		loop {
-			let containers = container_to_alias.containers.keys().map(Rc::clone).collect::<Vec<Rc<str>>>();
+			let containers = container_to_alias.get_display_container_names_as_rc();
 			let options = Options::with_capacity(Prefix::VARIANTS.len() + containers.len() + 1)
 					.insert_str_refs(Prefix::VARIANTS)
 					.insert_rc_strings(&containers)
@@ -254,7 +213,7 @@ impl <T: Theme> Wizard<'_, T> {
 					}
 				},
 				SelectionReturn::Return => {
-					self.set_restore_orch_aliases(container_to_alias.containers);
+					self.set_restore_orch_aliases(container_to_alias);
 					return Ok(())
 				},
 				SelectionReturn::Selection(Selection { vec_index: _, options_index: _ }) => unreachable!("options has only 2 elements"),
@@ -271,7 +230,7 @@ impl <T: Theme> Wizard<'_, T> {
 			let container_name = container_name.trim();
 			if container_name.is_empty() {
 				Ok(())
-			} else if container_to_alias.containers.contains_key(container_name) {
+			} else if container_to_alias.contains_container_name(container_name) {
 				Err(format!("The container name {container_name:?} already exists"))
 			} else {
 				Ok(())
@@ -296,7 +255,7 @@ impl <T: Theme> Wizard<'_, T> {
 			let alias = alias.trim();
 			if alias.is_empty() {
 				Ok(())
-			} else if container_to_alias.aliases.contains(alias) {
+			} else if container_to_alias.contains_alias(alias) {
 				Err(format!("The alias {alias:?} already exists"))
 			} else {
 				Ok(())
@@ -308,12 +267,7 @@ impl <T: Theme> Wizard<'_, T> {
 			Input::Empty => return Ok(()),
 		};
 
-		let aliases = container_to_alias.containers.entry(container_name).or_default();
-
-		let is_new_alias = container_to_alias.aliases.insert(Rc::clone(&alias));
-		debug_assert!(is_new_alias, "The validation above checked that this is a new unique alias");
-		let is_new_alias = aliases.insert(ContainerAlias { name: alias, ttl: None });
-		debug_assert!(is_new_alias, "The validation above checked that this is a new unique alias");
+		container_to_alias.insert_new_container_and_alias(container_name, alias, None); // TODO: add TTL here
 
 		Ok(())
 	}
@@ -352,7 +306,7 @@ impl <T: Theme> Wizard<'_, T> {
 					}
 				},
 				SelectionReturn::Selection(Selection { vec_index: 1, options_index: 0 }) => {
-					if let Some(new_container_name) = self.menu_11_rename_container(&container_name, &mut container_to_alias.containers)? {
+					if let Some(new_container_name) = self.menu_11_rename_container(&container_name, container_to_alias)? {
 						container_name = new_container_name;
 					}
 				},
@@ -399,12 +353,7 @@ impl <T: Theme> Wizard<'_, T> {
 			return Ok(());
 		};
 
-		let aliases = container_to_alias.containers.get_mut(container_name)
-			.expect("The given container_name must be already in the container mapping");
-		for selected in selected.into_iter().rev() {
-			let removed_alias = aliases.shift_remove_index(selected);
-			debug_assert!(removed_alias.is_some(), "The index must be pointing to a valid alias");
-		}
+		container_to_alias.shift_remove_index_aliases(container_name, selected.into_iter().rev());
 		
 		Ok(())
 	}
@@ -490,7 +439,7 @@ impl <T: Theme> Wizard<'_, T> {
 		Ok(())
 	}
 
-	fn menu_11_rename_container(&self, container_name: &str, container_to_alias: &mut ContainerToAlias) -> Result<Option<RcContainerName>> {
+	fn menu_11_rename_container(&self, container_name: &str, container_to_alias: &mut ContainerMapping) -> Result<Option<RcContainerName>> {
 		let mut is_same_container_name = false;
 		let input = self.prompter.input_with_validation(
 			format!("Choose new container name for {container_name:?} (leave empty to not rename)"),
@@ -502,7 +451,7 @@ impl <T: Theme> Wizard<'_, T> {
 				} else if container_name == new_container_name {
 					is_same_container_name = true;
 					Ok(())
-				} else if container_to_alias.contains_key(new_container_name) {
+				} else if container_to_alias.contains_container_name(new_container_name) {
 					Err(format!("The container name {new_container_name:?} already exists"))
 				} else {
 					Ok(())
@@ -518,16 +467,7 @@ impl <T: Theme> Wizard<'_, T> {
 			Input::Empty => return Ok(None),
 		};
 
-		let new_container_name_entry = container_to_alias.insert(Rc::clone(&new_container_name), IndexSet::new());
-		debug_assert!(new_container_name_entry.is_none(), "There shouldn't be an entry for the new container name, it was validated in the input prompt");
-		match container_to_alias.swap_remove(container_name) {
-			Some(prev_aliases) => {
-				let aliases = container_to_alias.get_mut(&new_container_name)
-					.expect("The new container name was just inserted");
-				*aliases = prev_aliases;
-			},
-			None => unreachable!("The current container name must have an entry in the mapping"),
-		}
+		container_to_alias.rename_container_name(container_name, Rc::clone(&new_container_name));
 
 		Ok(Some(new_container_name))
 	}
@@ -540,9 +480,7 @@ impl <T: Theme> Wizard<'_, T> {
 		let mut defaults = None;
 		
 		let selected = loop {
-			let containers = container_to_alias.containers.keys()
-				.map(std::convert::AsRef::as_ref)
-				.collect::<Vec<&str>>();
+			let containers = container_to_alias.get_display_container_names_as_str();
 			let selected = self.prompter.multi_select(
 				"Remove multiple container names (q to return to previous menu without selecting)",
 				&containers, defaults)?;
@@ -559,10 +497,7 @@ impl <T: Theme> Wizard<'_, T> {
 			defaults = Some(selected.to_defaults(containers.len()));
 		};
 
-		for selected in selected.into_iter().rev() {
-			let removed_container = container_to_alias.containers.shift_remove_index(selected);
-			debug_assert!(removed_container.is_some(), "The index must be pointing to a valid container");
-		}
+		container_to_alias.shift_remove_index_container_names(selected.into_iter().rev());
 		
 		Ok(())
 	}
@@ -654,47 +589,11 @@ Example:
 
 impl <T: Theme> Wizard<'_, T> {
 	fn get_reverse_orch_aliases(&self) -> ContainerMapping {
-		Wizard::<T>::reverse_orch_aliases(&self.config.orchestration.aliases)
+		ContainerMapping::new(&self.config.orchestration.aliases)
 	}
 
-	/// Generate a mapping from container names to their aliases,
-	/// according to the current config.
-	fn reverse_orch_aliases(aliases: &AliasToContainer) -> ContainerMapping {
-		aliases
-			.iter()
-			.map(|(alias, container_name)| (alias.clone(), container_name.clone()))
-			.fold(ContainerMapping { containers: IndexMap::new(), aliases: HashSet::new() }, |mut result, (alias, ContainerName { name: container_name, ttl })| {
-				let alias = Rc::from(alias);
-				result.containers.entry(Rc::from(container_name)).or_default().insert(ContainerAlias { name: Rc::clone(&alias), ttl });
-				result.aliases.insert(alias);
-				result
-			})
-	}
-
-	fn set_restore_orch_aliases(&mut self, reversed_aliases: ContainerToAlias) {
-		self.config.orchestration.aliases = Wizard::<T>::restore_orch_aliases(reversed_aliases);
-	}
-
-	/// Reverse a mapping from container names to their aliases,
-	/// back to the config format.
-	fn restore_orch_aliases(reversed_aliases: ContainerToAlias) -> AliasToContainer {
-		reversed_aliases
-			.into_iter()
-			.fold(HashMap::new(), |mut result, (container_name, aliases)| {
-				let container_name = container_name.to_string();
-				for ContainerAlias { name: alias, ttl } in aliases {
-					match result.entry(alias.to_string()) {
-						Entry::Vacant(entry) => {
-							entry.insert(ContainerName { name: container_name.clone(), ttl });
-						},
-						Entry::Occupied(entry) => {
-							warn!("The alias {0:?} points to two different container names: {1:?} and {2:?} ; Ignoring: {2:?}",
-								entry.key(), entry.get(), ContainerName { name: container_name.clone(), ttl });
-						},
-					}
-				}
-				result
-			})
+	fn set_restore_orch_aliases(&mut self, reversed_aliases: ContainerMapping) {
+		self.config.orchestration.aliases = reversed_aliases.restore();
 	}
 }
 
