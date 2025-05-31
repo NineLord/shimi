@@ -55,7 +55,7 @@ impl ContainerMapping {
 		aliases
 			.iter()
 			.map(|(alias, container_name)| (alias.clone(), container_name.clone()))
-			.fold(ContainerMapping { containers: IndexMap::new(), aliases: HashSet::new() }, |mut result, (alias, ContainerName { name: container_name, ttl })| {
+			.fold(Self { containers: IndexMap::new(), aliases: HashSet::new() }, |mut result, (alias, ContainerName { name: container_name, ttl })| {
 				let alias = Rc::from(alias);
 				result.containers.entry(Rc::from(container_name)).or_default().insert(ContainerAlias { name: Rc::clone(&alias), ttl });
 				result.aliases.insert(alias);
@@ -100,7 +100,7 @@ impl ContainerMapping {
 	}
 
 	/// # Panics
-	/// If the given `container_name` doesn't exists in the container mapping.
+	/// * If the given `container_name` doesn't exists in the container mapping.
 	pub fn get_display_aliases(&self, container_name: &str) -> Vec<String> {
 		self.containers.get(container_name)
 			.expect("The given container_name must already exists")
@@ -122,8 +122,8 @@ impl ContainerMapping {
 
 impl ContainerMapping {
 	/// # Panics
-	/// If the given `container_name` doesn't exists.
-	/// If the given `alias_index` doesn't exists.
+	/// * If the given `container_name` doesn't exists.
+	/// * If the given `alias_index` doesn't exists.
 	pub fn get_alias_name(&self, container_name: &str, alias_index: usize) -> &str {
 		self.containers.get(container_name)
 			.expect("The given container_name must already exists")
@@ -134,8 +134,8 @@ impl ContainerMapping {
 	}
 
 	/// # Panics
-	/// If the given `container_name` doesn't exists.
-	/// If the given `alias_index` doesn't exists.
+	/// * If the given `container_name` doesn't exists.
+	/// * If the given `alias_index` doesn't exists.
 	pub fn get_mut_alias_ttl(&mut self, container_name: &str, alias_index: usize) -> TtlMutRef {
 		self.containers.get_mut(container_name)
 			.expect("The given container_name must already exists")
@@ -158,23 +158,23 @@ impl ContainerMapping {
 
 impl ContainerMapping {
 	/// # Panics
-	/// If the given `alias` already exists.
+	/// * If the given `alias` already exists.
 	pub fn insert_new_container_and_alias(&mut self, container_name: RcContainerName, alias: RcAlias, ttl: Ttl) {
 		let aliases = self.containers.entry(container_name).or_default();
-		ContainerMapping::insert_new_alias_helper(&mut self.aliases, aliases, alias, ttl);
+		Self::insert_new_alias_helper(&mut self.aliases, aliases, alias, ttl);
 	}
 
 	/// # Panics
-	/// If the given `container_name` doesn't exists.
-	/// If the given `alias` already exists.
-	pub fn insert_new_alias(&mut self, container_name: RcContainerName, alias: RcAlias, ttl: Ttl) { // TODO: use this
-		let aliases = self.containers.get_mut(&container_name)
+	/// * If the given `container_name` doesn't exists.
+	/// * If the given `alias` already exists.
+	pub fn insert_new_alias(&mut self, container_name: &str, alias: RcAlias, ttl: Ttl) { // TODO: use this
+		let aliases = self.containers.get_mut(container_name)
 			.expect("The given container_name doesn't exists");
-		ContainerMapping::insert_new_alias_helper(&mut self.aliases, aliases, alias, ttl);
+		Self::insert_new_alias_helper(&mut self.aliases, aliases, alias, ttl);
 	}
 
 	/// # Panics
-	/// If the given `alias` already exists.
+	/// * If the given `alias` already exists.
 	fn insert_new_alias_helper(total_aliases: &mut Aliases, container_aliases: &mut IndexSet<ContainerAlias>, alias: RcAlias, ttl: Ttl) {
 		let is_new_alias = total_aliases.insert(Rc::clone(&alias));
 		debug_assert!(is_new_alias, "The given alias already exists");
@@ -183,14 +183,14 @@ impl ContainerMapping {
 	}
 
 	/// # Panics
-	/// If the given `new` already exists.
-	/// If the given `previous` doesn't exists.
-	pub fn rename_container_name(&mut self, previous: &str, new: RcContainerName) {
-		let new_container_name_entry = self.containers.insert(Rc::clone(&new), IndexSet::new());
+	/// * If the given `new` already exists.
+	/// * If the given `previous` doesn't exists.
+	pub fn rename_container_name(&mut self, previous: &str, new: &RcContainerName) {
+		let new_container_name_entry = self.containers.insert(Rc::clone(new), IndexSet::new());
 		debug_assert!(new_container_name_entry.is_none(), "The given new already exists");
 		match self.containers.swap_remove(previous) {
 			Some(prev_aliases) => {
-				let aliases = self.containers.get_mut(&new)
+				let aliases = self.containers.get_mut(new)
 					.expect("The new container name was just inserted");
 				*aliases = prev_aliases;
 			},
@@ -201,15 +201,15 @@ impl ContainerMapping {
 
 impl ContainerMapping {
 	/// # Panics
-	/// If the given `container_name` doesn't already exists.
-	/// If the given `alias_index` isn't valid index.
+	/// * If the given `container_name` doesn't already exists.
+	/// * If the given `alias_index` isn't valid index.
 	pub fn shift_remove_index_alias(&mut self, container_name: &str, alias_index: usize) {
 		self.shift_remove_index_aliases(container_name, std::iter::once(alias_index));
 	}
 
 	/// # Panics
-	/// If the given `container_name` doesn't already exists.
-	/// If the given `aliases_index` doesn't contain valid indexes.
+	/// * If the given `container_name` doesn't already exists.
+	/// * If the given `aliases_index` doesn't contain valid indexes.
 	pub fn shift_remove_index_aliases<I: Iterator<Item=usize>>(&mut self, container_name: &str, aliases_index: I) {
 		let aliases = self.containers.get_mut(container_name)
 			.expect("The given container_name must already exists");
@@ -225,13 +225,13 @@ impl ContainerMapping {
 
 impl ContainerMapping {
 	/// # Panics
-	/// If the given `container_name` isn't valid index.
+	/// * If the given `container_name` isn't valid index.
 	pub fn shift_remove_index_container_name<I: Iterator<Item=usize>>(&mut self, container_name: usize) {
 		self.shift_remove_index_container_names(std::iter::once(container_name));
 	}
 
 	/// # Panics
-	/// If the given `container_names` doesn't contain valid indexes.
+	/// * If the given `container_names` doesn't contain valid indexes.
 	pub fn shift_remove_index_container_names<I: Iterator<Item=usize>>(&mut self, container_names: I) {
 		for container_name_index in container_names {
 			let (_container_name, aliases) = self.containers.shift_remove_index(container_name_index)
@@ -286,7 +286,7 @@ impl AliasEntry<'_> {
 	}
 
 	pub fn set_ttl(&mut self, new: PrimitiveDateTime) {
-		self.alias.ttl.insert(new);
+		self.alias.ttl = Some(new);
 	}
 
 	pub fn remove_ttl(&mut self) {

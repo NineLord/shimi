@@ -2,17 +2,14 @@ use std::rc::Rc;
 use humantime::{parse_duration, parse_rfc3339_weak};
 use anyhow::Result;
 use clap::Args;
-use log::{info, warn};
+use log::info;
 use time::{OffsetDateTime, PrimitiveDateTime};
 use colored::Colorize;
 use dialoguer::theme::{ColorfulTheme, Theme};
-use lazy_static::lazy_static;
-use hashbrown::{HashMap, hash_map::Entry, HashSet};
-use indexmap::{map::Entry as IndexEntry, set::MutableValues, IndexMap, IndexSet};
 use strum::{EnumString, FromRepr, VariantNames};
 use super::{
-	structure::{Config, OrchestrationType, Orchestration, Kubernetes, StrAlias, AliasToContainer, ContainerName},
-	edit_structure::*,
+	structure::{Config, OrchestrationType, Kubernetes},
+	edit_structure::{AliasEntry, ContainerMapping, RcContainerName},
 	file_handler::FileHandler,
 	prompts::{prompter::Prompter, selection::{Options, Selection, SelectionReturn, from_repr}, multi_select::ToDefaults, input::Input}
 };
@@ -309,19 +306,13 @@ impl <T: Theme> Wizard<'_, T> {
 					}
 				},
 				SelectionReturn::Selection(Selection { vec_index: 2, options_index }) => {
-					let mut alias_entry = container_to_alias.entry_alias_index(Rc::clone(&container_name), options_index); // TODO: need to clone container_name?
+					let alias_entry = container_to_alias.entry_alias_index(Rc::clone(&container_name), options_index); // TODO: need to clone container_name?
 					let is_need_to_be_removed = self.menu_9_edit_aliases(alias_entry, SelectionReturn::default())?;
 					if is_need_to_be_removed {
-						let removed_alias = container_aliases.shift_remove_index(options_index);
-						if let Some(removed_alias) = removed_alias {
-							let is_removed = container_to_alias.aliases.remove(&removed_alias.name);
-							debug_assert!(is_removed, "an alias is suppose to be removed from aliases");
-						} else {
-							unreachable!("An alias is suppose to be removed from container");
-						}
-						if aliases.len() == 1 { // It was the last alias
-							selected = SelectionReturn::Return;
-						}
+						container_to_alias.shift_remove_index_alias(&container_name, options_index);
+					}
+					if aliases.len() == 1 { // It was the last alias
+						selected = SelectionReturn::Return;
 					}
 				},
 				SelectionReturn::Return => return Ok(false),
@@ -400,7 +391,7 @@ impl <T: Theme> Wizard<'_, T> {
 		let mut is_same_alias_name = false;
 		let input = self.prompter.input_with_validation(
 			format!("Choose new alias for {:?} of {:?} (leave empty to not rename)", alias.get_name(), alias.get_container_name()),
-			Some(&alias.get_name()),
+			Some(alias.get_name()),
 			|new_alias: &String | -> Result<(), String> {
 				let new_alias = new_alias.trim();
 				if new_alias.is_empty() {
@@ -457,7 +448,7 @@ impl <T: Theme> Wizard<'_, T> {
 			Input::Empty => return Ok(None),
 		};
 
-		container_to_alias.rename_container_name(container_name, Rc::clone(&new_container_name));
+		container_to_alias.rename_container_name(container_name, &new_container_name);
 
 		Ok(Some(new_container_name))
 	}
