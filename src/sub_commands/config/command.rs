@@ -79,6 +79,7 @@ impl Display for ContainerAlias {
 
 type ContainerToAlias = IndexMap<RcContainerName, IndexSet<ContainerAlias>>;
 type Aliases = HashSet<Rc<str>>;
+#[derive(Debug)]
 struct ContainerMapping {
 	containers: ContainerToAlias,
 	aliases: Aliases,
@@ -307,13 +308,12 @@ impl <T: Theme> Wizard<'_, T> {
 			Input::Empty => return Ok(()),
 		};
 
-		if let IndexEntry::Vacant(entry) = container_to_alias.containers.entry(container_name) {
-			let aliases = entry.insert(IndexSet::new());
-			let is_new_alias = aliases.insert(ContainerAlias { name: alias, ttl: None });
-			debug_assert!(is_new_alias, "menu 6 validates this is unique alias");
-		} else {
-			unreachable!("The validation callback above makes sure the entry is always vacant")
-		}
+		let aliases = container_to_alias.containers.entry(container_name).or_default();
+
+		let is_new_alias = container_to_alias.aliases.insert(Rc::clone(&alias));
+		debug_assert!(is_new_alias, "The validation above checked that this is a new unique alias");
+		let is_new_alias = aliases.insert(ContainerAlias { name: alias, ttl: None });
+		debug_assert!(is_new_alias, "The validation above checked that this is a new unique alias");
 
 		Ok(())
 	}
