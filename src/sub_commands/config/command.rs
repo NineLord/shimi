@@ -552,17 +552,28 @@ Example:
 						return Err("Something went wrong with the conversion the duration");
 					};
 					let Ok(now) = OffsetDateTime::now_local() else {
-						return Err("Can't get local time, try to set TTL with timestamp syntax instead of duration");
+						return Err("Can't get local time");
 					};
 					let now = PrimitiveDateTime::new(now.date(), now.time());
 					let Some(result) = now.checked_add(time_duration) else {
 						return Err("The given duration is too far into the future");
 					};
+
 					parsed_input = Some(result);
 					Ok(())
 				} else if let Ok(timestamp) = parse_rfc3339_weak(new_ttl) {
 					let timestamp = OffsetDateTime::from(timestamp);
-					parsed_input = Some(PrimitiveDateTime::new(timestamp.date(), timestamp.time()));
+					let timestamp = PrimitiveDateTime::new(timestamp.date(), timestamp.time());
+
+					let Ok(now) = OffsetDateTime::now_local() else {
+						return Err("Can't get local time");
+					};
+					let now = PrimitiveDateTime::new(now.date(), now.time());
+					if timestamp <= now {
+						return Err("The given timestamp is in the past, use one in the future");
+					}
+
+					parsed_input = Some(timestamp);
 					Ok(())
 				} else {
 					Err(HELP_SYNTAX)
