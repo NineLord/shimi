@@ -3,6 +3,8 @@ use dialoguer::FuzzySelect;
 use super::{prompter::Prompter, selection::{Options, Selection, SelectionReturn, insert_options_and_set_default, AnyItem, Item, Items, Selected, SelectedReturn}};
 
 impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
+	/// # Errors
+	/// If the terminal was interrupted
 	#[allow(dead_code)]
 	pub fn fuzzy_select_with_return<Prompt: Into<String>>(&self, prompt: Prompt, options: &Options<'_, SelectedReturn>) -> Result<SelectionReturn> {
 		let mut fuzzy_select = self.get_fuzzy_select(prompt);
@@ -12,6 +14,8 @@ impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
 		Ok(options.get_selection(fuzzy_select.interact()?))
 	}
 
+	/// # Errors
+	/// If the terminal was interrupted
 	#[allow(dead_code)]
 	pub fn fuzzy_select<Prompt: Into<String>>(&self, prompt: Prompt, options: &Options<'_, Selected>) -> Result<Selection> {
 		let mut fuzzy_select = self.get_fuzzy_select(prompt);

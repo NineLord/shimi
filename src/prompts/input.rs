@@ -8,12 +8,16 @@ pub enum Input {
 }
 
 impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
+	/// # Errors
+	/// If the terminal was interrupted
 	#[allow(dead_code)]
 	pub fn input<Prompt: Into<String>>(&self, prompt: Prompt, initial_text: Option<&str>) -> Result<Input> {
 		let none = None as Option<Box<dyn FnMut(&String) -> Result<(), &'static str>>>;
 		self.input_generic(prompt, initial_text, none)
 	}
 
+	/// # Errors
+	/// If the terminal was interrupted
 	#[allow(dead_code)]
 	pub fn input_with_validation<'a, Prompt, V>(&'a self, prompt: Prompt, initial_text: Option<&str>, validator: V) -> Result<Input>
 	where

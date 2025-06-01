@@ -3,6 +3,8 @@ use dialoguer::MultiSelect;
 use super::prompter::Prompter;
 
 impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
+	/// # Errors
+	/// If the terminal was interrupted
 	#[allow(dead_code)]
 	pub fn multi_select<Prompt: Into<String>, T: ToString>(&self, prompt: Prompt, items: &[T], selected: Option<Vec<bool>>) -> Result<Option<Vec<usize>>> {
 		let mut multi_select = MultiSelect::with_theme(&self.theme)
