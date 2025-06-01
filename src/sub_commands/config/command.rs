@@ -194,9 +194,14 @@ impl <T: Theme> Wizard<'_, T> {
 				SelectionReturn::Selection(Selection { vec_index: 1, options_index }) => {
 					let container = containers.get(options_index)
 						.expect("options_index has to be in range of containers");
-					let is_removed = self.menu_7_edit_container(&mut container_to_alias, Rc::clone(container), SelectionReturn::default())?;
-					if is_removed && containers.len() == 1 { // It was the last container
-						selected = SelectionReturn::Return;
+					let is_need_to_be_removed = self.menu_7_edit_container(&mut container_to_alias, Rc::clone(container), SelectionReturn::default())?;
+					if is_need_to_be_removed {
+						container_to_alias.shift_remove_index_container_name(options_index);
+						if containers.len() == 1 { // It was the last container
+							selected = SelectionReturn::Return;
+						} else if options_index == containers.len() -1 {
+							selected = SelectionReturn::Selection(Selection { vec_index: 1, options_index: options_index - 1 });
+						}
 					}
 				},
 				SelectionReturn::Return => {
@@ -280,7 +285,7 @@ impl <T: Theme> Wizard<'_, T> {
 	}
 
 	/// # Returns
-	/// If `true`, the container was removed
+	/// If `true`, the container needs to be removed
 	fn menu_7_edit_container(&self, container_to_alias: &mut ContainerMapping, mut container_name: Rc<str>, mut select: SelectionReturn) -> Result<bool> {
 		#[derive(EnumString, FromRepr, VariantNames)]
 		#[repr(u8)]
@@ -327,11 +332,11 @@ impl <T: Theme> Wizard<'_, T> {
 					let is_need_to_be_removed = self.menu_9_edit_alias(alias_entry, SelectionReturn::default())?;
 					if is_need_to_be_removed {
 						container_to_alias.shift_remove_index_alias(&container_name, options_index);
-					}
-					if aliases.len() == 1 { // It was the last alias
-						selected = SelectionReturn::Return;
-					} else if options_index == aliases.len() -1 {
-						selected = SelectionReturn::Selection(Selection { vec_index: 2, options_index: options_index - 1 });
+						if aliases.len() == 1 { // It was the last alias
+							selected = SelectionReturn::Return;
+						} else if options_index == aliases.len() -1 {
+							selected = SelectionReturn::Selection(Selection { vec_index: 2, options_index: options_index - 1 });
+						}
 					}
 				},
 				SelectionReturn::Return => return Ok(false),

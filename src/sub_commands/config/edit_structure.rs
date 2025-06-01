@@ -20,8 +20,6 @@ lazy_static! {
 pub type RcContainerName = Rc<str>;
 pub type RcAlias = Rc<str>;
 pub type Ttl = Option<PrimitiveDateTime>;
-pub type TtlRef<'a> = Option<&'a PrimitiveDateTime>;
-pub type TtlMutRef<'a> = Option<&'a mut PrimitiveDateTime>;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct ContainerAlias {
@@ -121,32 +119,6 @@ impl ContainerMapping {
 }
 
 impl ContainerMapping {
-	/// # Panics
-	/// * If the given `container_name` doesn't exists.
-	/// * If the given `alias_index` doesn't exists.
-	pub fn get_alias_name(&self, container_name: &str, alias_index: usize) -> &str {
-		self.containers.get(container_name)
-			.expect("The given container_name must already exists")
-			.get_index(alias_index)
-			.expect("The given alias must already exists")
-			.name
-			.as_ref()
-	}
-
-	/// # Panics
-	/// * If the given `container_name` doesn't exists.
-	/// * If the given `alias_index` doesn't exists.
-	pub fn get_mut_alias_ttl(&mut self, container_name: &str, alias_index: usize) -> TtlMutRef {
-		self.containers.get_mut(container_name)
-			.expect("The given container_name must already exists")
-			.get_index_mut2(alias_index)
-			.expect("The given alias must already exists")
-			.ttl
-			.as_mut()
-	}
-}
-
-impl ContainerMapping {
 	pub fn contains_container_name<C: ?Sized + Hash + EquivalentIndexMap<Rc<str>>>(&self, container_name: &C) -> bool {
 		self.containers.contains_key(container_name)
 	}
@@ -226,7 +198,7 @@ impl ContainerMapping {
 impl ContainerMapping {
 	/// # Panics
 	/// * If the given `container_name` isn't valid index.
-	pub fn shift_remove_index_container_name<I: Iterator<Item=usize>>(&mut self, container_name: usize) {
+	pub fn shift_remove_index_container_name(&mut self, container_name: usize) {
 		self.shift_remove_index_container_names(std::iter::once(container_name));
 	}
 
