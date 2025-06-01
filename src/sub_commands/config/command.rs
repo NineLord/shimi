@@ -4,11 +4,18 @@ use anyhow::Result;
 use clap::Args;
 use time::{OffsetDateTime, PrimitiveDateTime};
 use dialoguer::theme::{ColorfulTheme, Theme};
+use lazy_static::lazy_static;
 use strum::{EnumString, FromRepr, VariantNames};
 use super::{
 	edit_structure::{AliasEntry, ContainerMapping, RcAlias, RcContainerName, Ttl}, file_handler::FileHandler, prompts::{input::Input, multi_select::ToDefaults, prompter::Prompter, selection::{from_repr, Options, Selection, SelectionReturn}}, structure::{Config, Kubernetes, OrchestrationType}
 };
 use crate::{Run, GlobalOptions};
+
+lazy_static! {
+	static ref USER_PROMPT_DATE_FORMAT: Vec<time::format_description::BorrowedFormatItem<'static>> = {
+        time::format_description::parse("[year repr:full]-[month]-[day] [hour]:[minute]:[second padding:zero]").unwrap()
+    };
+}
 
 #[derive(Args, Debug)]
 #[command(about = "Modify the default behavior of the script.")]
@@ -54,7 +61,6 @@ impl <T: Theme> Wizard<'_, T> {
 	}
 }
 
-// TODO: probably didn't update the aliases along with the container names
 impl <T: Theme> Wizard<'_, T> {
 	fn menu_1_select_category(&mut self, mut select: Selection) -> Result<bool> {
 		#[derive(EnumString, FromRepr, VariantNames)]
@@ -239,12 +245,14 @@ impl <T: Theme> Wizard<'_, T> {
 			}
 		})?;
 
-		let alias = match input {
+		let alias: RcAlias = match input {
 			Input::NoneEmpty(alias) => Rc::from(alias),
 			Input::Empty => return Ok(None),
 		};
 
-		Ok(Some((alias, None))) // TODO: add TTL here
+		let ttl = self.prompt_ttl(container_name, alias.as_ref(), None)?;
+
+		Ok(Some((alias, ttl)))
 	}
 
 	fn menu_6_new_alias(&self, container_name: &str, container_to_alias: &mut ContainerMapping) -> Result<()> {
@@ -493,7 +501,7 @@ impl <T: Theme> Wizard<'_, T> {
 		self.prompter.confirm("Are you sure you want to remove those containers?")
 	}
 
-	fn menu_15_edit_ttl(&self, alias_entry: &mut AliasEntry<'_>) -> Result<()> {
+	fn prompt_ttl(&self, container_name: &str, alias: &str, previous_ttl: Option<&PrimitiveDateTime>) -> Result<Option<PrimitiveDateTime>> {
 		const HELP_SYNTAX: &str = "
 Syntax for Durations:
 * `nsec`, `ns` -- nanoseconds
@@ -518,16 +526,23 @@ Syntax for Timestamp (RFC3339-like):
 Example:
 `1994-10-25 16:45:00`";
 
-		let prompt = if alias_entry.has_ttl() {
-			format!("Editing TTL for {:?} of {:?} (type 'help' for syntax, leave empty to not change the TTL)", alias_entry.get_name(), alias_entry.get_container_name())
+		let prompt = if previous_ttl.is_some() {
+			format!("Editing TTL for {alias:?} of {container_name:?} (type 'help' for syntax, leave empty to not change the TTL)")
 		} else {
-			format!("Adding TTL for {:?} of {:?} (type 'help' for syntax, leave empty to not add TTL)", alias_entry.get_name(), alias_entry.get_container_name())
+			format!("Adding TTL for {alias:?} of {container_name:?} (type 'help' for syntax, leave empty to not add TTL)")
 		};
+
+		// TODO: PrimitiveDateTime saves my local time? converting to utc will cause problems
+		// TODO: parsing from utc could also cause problems
 
 		let mut parsed_input = None;
 		let input = self.prompter.input_with_validation(
 			prompt,
-			alias_entry.get_ttl_as_user_prompt()?.as_ref().map(std::convert::AsRef::as_ref),
+			previous_ttl
+				.map(|ttl| ttl.format(&USER_PROMPT_DATE_FORMAT))
+				.transpose()?
+				.as_ref()
+				.map(std::convert::AsRef::as_ref),
 			|new_ttl: &String | -> Result<(), &'static str> {
 				let new_ttl = new_ttl.trim();
 				if new_ttl.is_empty() {
@@ -554,13 +569,19 @@ Example:
 				}
 			})?;
 
-		let new_ttl = match (input, parsed_input) {
-			(Input::NoneEmpty(_), Some(new_ttl)) => new_ttl,
-			(Input::Empty, None) => return Ok(()),
+		let result = match (input, parsed_input) {
+			(Input::NoneEmpty(_), Some(new_ttl)) => Some(new_ttl),
+			(Input::Empty, None) => None,
 			(Input::Empty, Some(_)) | (Input::NoneEmpty(_), None) => unreachable!("Invalid state due to the validator"),
 		};
 
-		alias_entry.set_ttl(new_ttl);
+		Ok(result)
+	}
+
+	fn menu_15_edit_ttl(&self, alias_entry: &mut AliasEntry<'_>) -> Result<()> {
+		if let Some(new_ttl) = self.prompt_ttl(alias_entry.get_container_name(), alias_entry.get_name(), alias_entry.get_ttl())? {
+			alias_entry.set_ttl(new_ttl);
+		}
 
 		Ok(())
 	}

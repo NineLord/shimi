@@ -1,5 +1,4 @@
 use std::{fmt::Display, rc::Rc, hash::Hash};
-use anyhow::Result;
 use log::warn;
 use hashbrown::{HashMap, hash_map::Entry as HashbrownMapEntry, HashSet, Equivalent as EquivalentHashbrown};
 use indexmap::{set::MutableValues, Equivalent as EquivalentIndexMap, IndexMap, IndexSet};
@@ -11,15 +10,12 @@ lazy_static! {
     static ref CONTAINER_ALIAS_DATE_FORMAT: Vec<time::format_description::BorrowedFormatItem<'static>> = {
         time::format_description::parse("[day]/[month]/[year repr:last_two] [hour]:[minute]").unwrap()
     };
-
-	static ref USER_PROMPT_DATE_FORMAT: Vec<time::format_description::BorrowedFormatItem<'static>> = {
-        time::format_description::parse("[year repr:full]-[month]-[day] [hour]:[minute]:[second padding:zero]").unwrap()
-    };
 }
 
 pub type RcContainerName = Rc<str>;
 pub type RcAlias = Rc<str>;
 pub type Ttl = Option<PrimitiveDateTime>;
+pub type TtlRef<'a> = Option<&'a PrimitiveDateTime>;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct ContainerAlias {
@@ -228,21 +224,6 @@ impl AliasEntry<'_> {
 		self.alias.ttl.is_some()
 	}
 
-	pub fn get_ttl_as_user_prompt(&self) -> Result<Option<String>> {
-		// TODO: PrimitiveDateTime saves my local time? converting to utc will cause problems
-		// TODO: parsing from utc could also cause problems
-		let result = match self.alias.ttl {
-			Some(ttl) => Some(ttl.format(&USER_PROMPT_DATE_FORMAT)?),
-			None => None,
-		};
-		Ok(result)
-	}
-
-	// #[inline]
-	// pub fn get_mut_ttl(&mut self) -> &mut Ttl {
-	// 	&mut self.alias.ttl
-	// }
-
 	#[inline]
 	pub fn get_container_name(&self) -> &str {
 		self.container_name.as_ref()
@@ -255,6 +236,10 @@ impl AliasEntry<'_> {
 
 	pub fn contains_alias<A: ?Sized + Hash + EquivalentHashbrown<Rc<str>>>(&self, alias: &A) -> bool {
 		self.aliases.contains(alias)
+	}
+
+	pub fn get_ttl(&self) -> TtlRef<'_> {
+		self.alias.ttl.as_ref()
 	}
 
 	pub fn set_ttl(&mut self, new: PrimitiveDateTime) {
