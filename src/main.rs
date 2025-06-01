@@ -48,6 +48,8 @@ pub mod sub_commands {
 
 		mod structure;
 		pub use structure::{Config, OrchestrationType};
+
+		mod edit_structure;
 	}
 }
 pub use top_command::GlobalOptions;
