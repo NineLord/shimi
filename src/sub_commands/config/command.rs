@@ -2,9 +2,7 @@ use std::rc::Rc;
 use humantime::{parse_duration, parse_rfc3339_weak};
 use anyhow::Result;
 use clap::Args;
-use log::info;
 use time::{OffsetDateTime, PrimitiveDateTime};
-use colored::Colorize;
 use dialoguer::theme::{ColorfulTheme, Theme};
 use strum::{EnumString, FromRepr, VariantNames};
 use super::{
@@ -20,23 +18,6 @@ pub struct Command;
 
 // Utils for Interactive Shell
 impl Command {
-	fn style_key(key: &str) -> String {
-		format!("{}{}{}",
-			"[".bright_red(),
-			key.bold().white(),
-			"]".bright_red(),
-		)
-	}
-
-	fn print_keybinds() {
-		info!("Keybinds:
-{} Select
-{} Select and continue
-{} Continue without selecting",
-			Self::style_key("space"), Self::style_key("enter"), Self::style_key("q")
-		);
-	}
-
 	fn get_theme() -> ColorfulTheme {
 		ColorfulTheme::default()
 	}
@@ -44,6 +25,7 @@ impl Command {
 
 struct Wizard<'cfg, T: Theme> {
 	prompter: Prompter<T>,
+	#[allow(dead_code)]
 	global_options: &'cfg GlobalOptions,
 	config: Config,
 }
@@ -328,7 +310,7 @@ impl <T: Theme> Wizard<'_, T> {
 					}
 				},
 				SelectionReturn::Selection(Selection { vec_index: 2, options_index }) => {
-					let alias_entry = container_to_alias.entry_alias_index(Rc::clone(&container_name), options_index); // TODO: need to clone container_name?
+					let alias_entry = container_to_alias.entry_alias_index(Rc::clone(&container_name), options_index);
 					let is_need_to_be_removed = self.menu_9_edit_alias(alias_entry, SelectionReturn::default())?;
 					if is_need_to_be_removed {
 						container_to_alias.shift_remove_index_alias(&container_name, options_index);
