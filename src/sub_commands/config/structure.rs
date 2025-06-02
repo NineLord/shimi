@@ -1,6 +1,7 @@
 use hashbrown::HashMap;
 use serde::{Serialize, Deserialize};
 use strum::{EnumString, FromRepr, VariantNames};
+use time::PrimitiveDateTime;
 use clap::ValueEnum;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -9,16 +10,14 @@ pub struct Config {
 	pub orchestration: Orchestration,
 }
 
+pub type StrAlias = String;
+pub type AliasToContainer = HashMap<StrAlias, ContainerName>;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Orchestration {
 	pub variant: OrchestrationType,
 	pub kubernetes: Option<Kubernetes>,
-	pub aliases: HashMap<String, String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Kubernetes {
-	pub name_space: String,
+	pub aliases: AliasToContainer,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, EnumString, FromRepr, VariantNames, ValueEnum)]
@@ -28,6 +27,17 @@ pub enum OrchestrationType {
 	DockerCompose,
 	#[strum(serialize = "Kubernetes")]
 	Kubernetes,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Kubernetes {
+	pub name_space: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContainerName {
+	pub name: String,
+	pub ttl: Option<PrimitiveDateTime>
 }
 
 impl Config {

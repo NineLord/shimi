@@ -1,8 +1,9 @@
+use hashbrown::HashSet;
 use tap::prelude::*;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result, Error as AnyhowError};
 use log::trace;
 use indexmap::{IndexSet, indexset};
-use crate::{utils::ExitError, GlobalOptions, sub_commands::config::OrchestrationType};
+use crate::{utils::ExitError, GlobalOptions, sub_commands::config::{OrchestrationType, Wizard as ConfigWizard}};
 
 #[derive(Debug)]
 pub struct GlobalOrchOptions<'cfg> {
@@ -66,11 +67,10 @@ pub enum IsTryGetMatch {
 	No,
 	/// Will try to find a matching container,
 	/// from the list of sources.
-	/// The order of list represent priority order,
-	/// once a match is found, it won't go over the other sources.
+	/// If multiple matches are found, will prompt to choose one and optionally add alias/TTL to them.
 	/// # Panics
 	/// * If the given list is empty.
-	Yes(IndexSet<MatchSource>)
+	Yes(IndexSet<MatchSource>) // TODO: maybe no need to keep the order anymore.
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
@@ -134,20 +134,32 @@ impl GlobalOrchOptions<'_> {
 			result
 		};
 
-		for source in sources {
-			let result = source.to_container_names(self)?
-				.into_iter()
-				.find(|ContainerName { original: _, abbreviation }| abbreviation.contains(&matching_alias))
-				.map(|ContainerName { original, abbreviation: _ }| original);
+		let containers = sources.into_iter()
+			.try_fold(HashSet::new(), |mut set, source| {
+				set.extend(
+					source.to_container_names(self)?
+						.into_iter()
+						.filter(|ContainerName { original: _, abbreviation }| abbreviation.contains(&matching_alias))
+						.map(|ContainerName { original, abbreviation: _ }| original)
+				);
+				Ok::<HashSet<String>, AnyhowError>(set)
+			})?;
 
-
-			if let Some(result) = result {
-				trace!("get_container_name :: result={result:?}");
-				return Ok(result);
-			}
+		if containers.is_empty() {
+			ExitError::BadArgument.exit(format!("Couldn't find container with the name {input:?} or alias for it"));
 		}
 
-		ExitError::BadArgument.exit(format!("Couldn't find container with the name {input:?} or alias for it"));
+		let result = if containers.len() == 1 {
+			containers.into_iter()
+				.find(|_| true)
+				.expect("size is 1, then find must get an element")
+		} else {
+			ConfigWizard::new(self.global_options)
+				.select_container_and_add_aliases(containers)?
+		};
+
+		trace!("get_container_name :: result={result:?}");
+		Ok(result)
 	}
 
 	/// Convert the input to his alias, or defaults back to the input.
@@ -157,6 +169,7 @@ impl GlobalOrchOptions<'_> {
 		let alias = self.global_options.config.orchestration.aliases.get(&input);
 		trace!("convert_to_alias :: from {input:?} to {alias:?}");
 		alias
+			.map(|container_alias| &container_alias.name)
 			.cloned()
 			.unwrap_or(input)
 	}

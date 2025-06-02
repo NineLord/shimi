@@ -6,6 +6,15 @@ pub mod top_command;
 pub mod logger;
 pub mod utils;
 pub mod prelude;
+pub mod prompts {
+	pub mod prompter;
+	pub mod selection;
+	pub mod multi_select;
+	pub mod fuzzy_select;
+	pub mod select;
+	pub mod input;
+	pub mod confirm;
+}
 pub mod sub_commands {
 	pub mod git {
 		mod command;
@@ -30,13 +39,16 @@ pub mod sub_commands {
 		mod reset;
 	}
 	pub mod config {
-		pub use command::Command;
-		pub use structure::{Config, OrchestrationType};
+		mod command;
+		pub use command::{Command, Wizard};
+
+		mod file_handler;
 		pub(crate) use file_handler::FileHandler;
 
-		mod command;
-		mod file_handler;
 		mod structure;
+		pub use structure::{Config, OrchestrationType};
+
+		mod edit_structure;
 	}
 }
 pub use top_command::GlobalOptions;

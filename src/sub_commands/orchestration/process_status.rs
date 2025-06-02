@@ -86,6 +86,9 @@ impl GlobalOrchOptions<'_> {
 				String::from("you_tube_3"),
 				String::from("path-of-exile-2"),
 				String::from("spongebob"),
+				String::from("facebook-jfdksalfhdka"),
+				String::from("facebook-djrieoruaiea"),
+				String::from("facebook-fjdasklfjsad"),
 			]
 		} else {
 			std::str::from_utf8(&output.stdout)?
