@@ -1,3 +1,5 @@
+use dialoguer::theme::ColorfulTheme;
+
 pub struct Prompter<Theme: dialoguer::theme::Theme> {
 	pub(super) theme: Theme
 }
@@ -8,6 +10,12 @@ impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
 		Self {
 			theme
 		}
+	}
+}
+
+impl Default for Prompter<ColorfulTheme> {
+	fn default() -> Self {
+		Self::new(ColorfulTheme::default())
 	}
 }
 //#endregion

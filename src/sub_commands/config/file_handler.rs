@@ -7,7 +7,10 @@ use super::structure::Config;
 use crate::{GlobalOptions, utils::default_value_home_dir};
 
 pub struct FileHandler;
+#[cfg(not(feature = "dry_run"))]
 const CONFIG_FILE_NAME: &str = ".shimirc.ron";
+#[cfg(feature = "dry_run")]
+const CONFIG_FILE_NAME: &str = ".shimirc_dryrun.ron";
 
 // Default values
 impl FileHandler {
@@ -49,23 +52,21 @@ impl FileHandler {
 	pub(super) fn save(config: &Config, global_options: &GlobalOptions) -> Result<()> {
 		let config_path = Self::get_config_file_path()?;
 
-		if !cfg!(feature = "dry_run") {
-			if global_options.is_fail_to_parse_config {
-				let prev_config_path = Self::backup_prev_config(&config_path)?;
-				warn!("Previous config file was backed up due to failure to parse it at: {prev_config_path:?}");
-			}
-
-			let config_file = fs::OpenOptions::new()
-				.create(true)
-				.truncate(true)
-				.write(true)
-				.open(&config_path)
-				.with_context(|| format!("failed to open the config file with write permissions at: {config_path:?}"))?;
-	
-			ron::Options::default()
-				.to_io_writer_pretty(&config_file, &config, Self::get_pretty_config())
-				.with_context(|| format!("Failed to write the config file at: {config_path:?}"))?;
+		if global_options.is_fail_to_parse_config {
+			let prev_config_path = Self::backup_prev_config(&config_path)?;
+			warn!("Previous config file was backed up due to failure to parse it at: {prev_config_path:?}");
 		}
+
+		let config_file = fs::OpenOptions::new()
+			.create(true)
+			.truncate(true)
+			.write(true)
+			.open(&config_path)
+			.with_context(|| format!("failed to open the config file with write permissions at: {config_path:?}"))?;
+
+		ron::Options::default()
+			.to_io_writer_pretty(&config_file, &config, Self::get_pretty_config())
+			.with_context(|| format!("Failed to write the config file at: {config_path:?}"))?;
 
 		if global_options.is_verbose {
 			info!("Successfully written the config file to: {config_path:?}");

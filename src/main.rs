@@ -40,7 +40,7 @@ pub mod sub_commands {
 	}
 	pub mod config {
 		mod command;
-		pub use command::Command;
+		pub use command::{Command, Wizard};
 
 		mod file_handler;
 		pub(crate) use file_handler::FileHandler;

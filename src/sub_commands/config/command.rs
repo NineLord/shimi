@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use hashbrown::HashSet;
 use humantime::{parse_duration, parse_rfc3339_weak};
 use anyhow::Result;
 use clap::Args;
@@ -29,24 +30,18 @@ lazy_static! {
 Will enter into interactive CLI that will allow you to edit your config file.")]
 pub struct Command;
 
-// Utils for Interactive Shell
-impl Command {
-	fn get_theme() -> ColorfulTheme {
-		ColorfulTheme::default()
-	}
-}
-
-struct Wizard<'cfg, T: Theme> {
+pub struct Wizard<'cfg, T: Theme> {
 	prompter: Prompter<T>,
 	#[allow(dead_code)]
 	global_options: &'cfg GlobalOptions,
 	config: Config,
 }
 
-impl <'cfg, T: Theme> Wizard<'cfg, T> {
-	pub fn new(global_options: &'cfg GlobalOptions, theme: T) -> Self {
+impl <'cfg> Wizard<'cfg, ColorfulTheme> {
+	#[must_use]
+	pub fn new(global_options: &'cfg GlobalOptions) -> Self {
 		Self {
-			prompter: Prompter::new(theme),
+			prompter: Prompter::default(),
 			global_options,
 			config: Config {
 				version: global_options.version.clone(),
@@ -62,6 +57,24 @@ impl <T: Theme> Wizard<'_, T> {
 			Some(self.config)
 		} else {
 			None
+		};
+		Ok(result)
+	}
+}
+
+enum TtlPrompt<'a> {
+	PreviousTtl(Option<&'a PrimitiveDateTime>),
+	ManualPrompt(Option<&'a str>),
+}
+
+impl TtlPrompt<'_> {
+	fn into_prompt(self) -> Result<Option<String>> {
+		let result = match self {
+			TtlPrompt::PreviousTtl(previous_ttl) => previous_ttl
+				.map(|ttl| ttl.format(&USER_PROMPT_DATE_FORMAT))
+				.transpose()?,
+			TtlPrompt::ManualPrompt(prompt) => prompt
+				.map(String::from),
 		};
 		Ok(result)
 	}
@@ -226,7 +239,7 @@ impl <T: Theme> Wizard<'_, T> {
 		let result = match input {
 			Input::NoneEmpty(container_name) => {
 				let container_name = Rc::from(container_name);
-				if self.menu_16_new_container_new_alias(Rc::clone(&container_name), container_to_alias)? {
+				if self.menu_16_new_container_new_alias(Rc::clone(&container_name), container_to_alias, None)? {
 					!self.menu_7_edit_container(container_to_alias, container_name, SelectionReturn::default())?
 				} else {
 					false
@@ -238,14 +251,14 @@ impl <T: Theme> Wizard<'_, T> {
 		Ok(result)
 	}
 
-	fn prompt_new_alias(&self, container_name: &str, container_to_alias: &ContainerMapping) -> Result<Option<(RcAlias, Ttl)>> {
+	fn prompt_new_alias(&self, container_name: &str, container_to_alias: &ContainerMapping, default_ttl_prompt: Option<&str>) -> Result<Option<(RcAlias, Ttl)>> {
 		let input = self.prompter.input_with_validation(format!("Choose new alias for {container_name:?} (leave empty to not add)"), None,
 		|alias: &String | -> Result<(), String> {
 			let alias = alias.trim();
 			if alias.is_empty() {
 				Ok(())
 			} else if container_to_alias.contains_alias(alias) {
-				Err(format!("The alias {alias:?} already exists"))
+				Err(format!("The alias {alias:?} already exists")) // TODO: add the container name that has this alias
 			} else {
 				Ok(())
 			}
@@ -256,13 +269,19 @@ impl <T: Theme> Wizard<'_, T> {
 			Input::Empty => return Ok(None),
 		};
 
-		let ttl = self.prompt_ttl(container_name, alias.as_ref(), None)?;
+		let ttl_prompt = if default_ttl_prompt.is_some() {
+			TtlPrompt::ManualPrompt(default_ttl_prompt)
+		} else {
+			TtlPrompt::PreviousTtl(None)
+		};
+
+		let ttl = self.prompt_ttl(container_name, alias.as_ref(), ttl_prompt)?;
 
 		Ok(Some((alias, ttl)))
 	}
 
 	fn menu_6_new_alias(&self, container_name: &str, container_to_alias: &mut ContainerMapping) -> Result<()> {
-		if let Some((alias, ttl)) = self.prompt_new_alias(container_name, container_to_alias)? {
+		if let Some((alias, ttl)) = self.prompt_new_alias(container_name, container_to_alias, None)? {
 			container_to_alias.insert_new_alias(container_name, alias, ttl);
 		}
 
@@ -271,8 +290,8 @@ impl <T: Theme> Wizard<'_, T> {
 
 	/// # Returns
 	/// If `true`, the container was added.
-	fn menu_16_new_container_new_alias(&self, container_name: Rc<str>, container_to_alias: &mut ContainerMapping) -> Result<bool> {
-		if let Some((alias, ttl)) = self.prompt_new_alias(&container_name, container_to_alias)? {
+	fn menu_16_new_container_new_alias(&self, container_name: Rc<str>, container_to_alias: &mut ContainerMapping, default_ttl_prompt: Option<&str>) -> Result<bool> {
+		if let Some((alias, ttl)) = self.prompt_new_alias(&container_name, container_to_alias, default_ttl_prompt)? {
 			container_to_alias.insert_new_container_and_alias(container_name, alias, ttl);
 			Ok(true)
 		} else {
@@ -420,7 +439,7 @@ impl <T: Theme> Wizard<'_, T> {
 					is_same_alias_name = true;
 					Ok(())
 				} else if alias.contains_alias(new_alias) {
-					Err(format!("The alias {new_alias:?} already exists"))
+					Err(format!("The alias {new_alias:?} already exists")) // TODO: add the container name that has this alias
 				} else {
 					Ok(())
 				}
@@ -507,7 +526,7 @@ impl <T: Theme> Wizard<'_, T> {
 		self.prompter.confirm("Are you sure you want to remove those containers?")
 	}
 
-	fn prompt_ttl(&self, container_name: &str, alias: &str, previous_ttl: Option<&PrimitiveDateTime>) -> Result<Option<PrimitiveDateTime>> {
+	fn prompt_ttl(&self, container_name: &str, alias: &str, ttl_prompt: TtlPrompt) -> Result<Option<PrimitiveDateTime>> {
 		const HELP_SYNTAX: &str = "
 Syntax for Durations:
 * `nsec`, `ns` -- nanoseconds
@@ -532,7 +551,7 @@ Syntax for Timestamp (RFC3339-like):
 Example:
 `1994-10-25 16:45:00`";
 
-		let prompt = if previous_ttl.is_some() {
+		let prompt = if matches!(ttl_prompt, TtlPrompt::PreviousTtl(Some(_))) {
 			format!("Editing TTL for {alias:?} of {container_name:?} (type 'help' for syntax, leave empty to not change the TTL)")
 		} else {
 			format!("Adding TTL for {alias:?} of {container_name:?} (type 'help' for syntax, leave empty to not add TTL)")
@@ -544,9 +563,7 @@ Example:
 		let mut parsed_input = None;
 		let input = self.prompter.input_with_validation(
 			prompt,
-			previous_ttl
-				.map(|ttl| ttl.format(&USER_PROMPT_DATE_FORMAT))
-				.transpose()?
+			ttl_prompt.into_prompt()?
 				.as_ref()
 				.map(std::convert::AsRef::as_ref),
 			|new_ttl: &String | -> Result<(), &'static str> {
@@ -596,7 +613,7 @@ Example:
 	}
 
 	fn menu_15_edit_ttl(&self, alias_entry: &mut AliasEntry<'_>) -> Result<()> {
-		if let Some(new_ttl) = self.prompt_ttl(alias_entry.get_container_name(), alias_entry.get_name(), alias_entry.get_ttl())? {
+		if let Some(new_ttl) = self.prompt_ttl(alias_entry.get_container_name(), alias_entry.get_name(), TtlPrompt::PreviousTtl(alias_entry.get_ttl()))? {
 			alias_entry.set_ttl(new_ttl);
 		}
 
@@ -614,9 +631,79 @@ impl <T: Theme> Wizard<'_, T> {
 	}
 }
 
+impl <T: Theme> Wizard<'_, T> {
+	/// # Errors
+	/// * Failed to get the path to the config file.
+	/// * Failed to open the config file with write permissions.
+	/// * Failed to serialize the config.
+	/// * The terminal was interrupted.
+	pub fn select_container_and_add_aliases(mut self, containers: HashSet<String>) -> Result<String> {
+		let mut container_to_alias = self.get_reverse_orch_aliases();
+
+		let result = self.menu_17_add_alias_or_select_container(&mut container_to_alias, containers.into_iter().map(Rc::from).collect(), Selection::default())?;
+		
+		self.set_restore_orch_aliases(container_to_alias);
+		FileHandler::save(&self.config, self.global_options)?;
+		
+		Ok(String::from(result.as_ref()))
+	}
+
+	fn menu_17_add_alias_or_select_container(&self, container_to_alias: &mut ContainerMapping, mut containers: Vec<Rc<str>>, mut select: Selection) -> Result<Rc<str>> {
+		#[derive(EnumString, FromRepr, VariantNames)]
+		#[repr(u8)]
+		enum Prefix {
+			#[strum(serialize = "➕ Add aliases")]
+			AddAlias,
+		}
+
+		loop {
+			let options = Options::with_capacity(Prefix::VARIANTS.len() + containers.len())
+					.insert_str_refs(Prefix::VARIANTS)
+					.insert_rc_strings(&containers)
+					.set_selection(&select);
+
+			let selected = self.prompter.fuzzy_select("Add alias or choose container", &options)?;
+			match selected {
+				Selection { vec_index: 0, options_index } => {
+					match from_repr!(Prefix, options_index) {
+						Prefix::AddAlias => { self.menu_18_add_aliases(container_to_alias, &containers, SelectionReturn::default())?; },
+					}
+				},
+				Selection { vec_index: 1, options_index } => {
+					return Ok(containers.swap_remove(options_index));
+				},
+				Selection { vec_index: _, options_index: _ } => unreachable!("options has only 2 elements"),
+			}
+			select = selected;
+		}
+	}
+
+	fn menu_18_add_aliases(&self, container_to_alias: &mut ContainerMapping, containers: &[Rc<str>], mut select: SelectionReturn) -> Result<()> {
+		loop {
+			let options = Options::with_capacity(containers.len() + 1)
+					.insert_rc_strings(containers)
+					.insert_return()
+					.set_selection(&select);
+
+			let selected = self.prompter.fuzzy_select_with_return("Choose container name to add alias", &options)?;
+			match selected {
+				SelectionReturn::Selection(Selection { vec_index: 0, options_index }) => {
+					let container_name = Rc::clone(containers.get(options_index).expect("options_index must be valid"));
+					self.menu_16_new_container_new_alias(container_name, container_to_alias, Some("24h"))?;
+				},
+				SelectionReturn::Return => {
+					return Ok(());
+				},
+				SelectionReturn::Selection(Selection { vec_index: _, options_index: _ }) => unreachable!("options has only 1 element"),
+			}
+			select = selected;
+		}
+	}
+}
+
 impl Run for Command {
 	fn run(self, global_options: &GlobalOptions) -> Result<()> {
-		if let Some(config) = Wizard::new(global_options, Self::get_theme()).run()? {
+		if let Some(config) = Wizard::new(global_options).run()? {
 			FileHandler::save(&config, global_options)?;
 		}
 		Ok(())
