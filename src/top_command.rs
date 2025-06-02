@@ -55,7 +55,7 @@ impl TopCommand {
 			process::exit(1);
 		};
 
-		let (config, is_fail_to_parse_config) = match config::FileHandler::read() {
+		let (config, is_fail_to_parse_config) = match config::FileHandler::read(top_command.is_verbose) {
 			Ok(Some(config)) => (config, false),
 			Err(_) => (Config::default(version.clone()), false),
 			Ok(None) => {

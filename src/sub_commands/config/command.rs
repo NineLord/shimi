@@ -643,7 +643,7 @@ impl <T: Theme> Wizard<'_, T> {
 		let result = self.menu_17_add_alias_or_select_container(&mut container_to_alias, containers.into_iter().map(Rc::from).collect(), Selection::default())?;
 		
 		self.set_restore_orch_aliases(container_to_alias);
-		FileHandler::save(&self.config, self.global_options)?;
+		FileHandler::save(&self.config, self.global_options.is_fail_to_parse_config, self.global_options.is_verbose)?;
 		
 		Ok(String::from(result.as_ref()))
 	}
@@ -704,7 +704,7 @@ impl <T: Theme> Wizard<'_, T> {
 impl Run for Command {
 	fn run(self, global_options: &GlobalOptions) -> Result<()> {
 		if let Some(config) = Wizard::new(global_options).run()? {
-			FileHandler::save(&config, global_options)?;
+			FileHandler::save(&config, global_options.is_fail_to_parse_config, global_options.is_verbose)?;
 		}
 		Ok(())
 	}
