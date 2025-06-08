@@ -15,25 +15,29 @@ It contains commands that are too inconvenient to type every time, or just hard 
 ## TODOs
 * [x] Changing the config wizard to manually editing specific settings  
 instead of going over all of them each time running the config command.
-* [ ] Allow to user to overwrite default behaviors using the config (can be done with [clap-config-file](https://crates.io/crates/clap-config-file)), such as:
- * Default command at `s docker exec`.
- * By default `s docker ps` not showing all containers.
- * By default `s docker logs` always follows.
- * By default `s docker logs` shows all the logs (no `tail` turned on).
-* [ ] `clap` has feature for auto completions to commands.
- * A different example how to achieve shell completion with [clap_generate](https://github.com/tgm-templates/rust-cli/tree/master).
-* [ ] `dialoguer` has feature for history to prompts.
-* [ ] Handle config file with `confy` instead of manually: `confy = {version = "*", default-features = false, features = ["ron_conf"]} # Configuration management`
-* [ ] Add better support for unexpected panics with [human-panic](https://github.com/rust-cli/human-panic).
-* [ ] Try mocking library to make testing easier with [injectorpp](https://www.reddit.com/r/rust/comments/1l2qhb6/a_new_mocking_library_to_mock_functions_without/).
-* [ ] Fix not restoring terminal state correctly when `ctrl+C` inside dialoguer: [workaround](https://github.com/console-rs/dialoguer/issues/294).
-* [ ] consider using [config-rs](https://crates.io/crates/config), to better support the 12-factor.
-* [ ] Add demo to this readme using [Terminalizer](https://github.com/faressoft/terminalizer).
-* [ ] Add support to multi-lang using [rust-i18n](https://crates.io/crates/rust-i18n/)/[sys-locale](https://crates.io/crates/sys-locale).
-* [ ] Support backward compatibility of the configs using [SuperStruct](https://crates.io/crates/superstruct)/[serde](https://ivanbyte.medium.com/backward-compatible-data-de-serialization-with-serde-flow-in-rust-c87a2e8bc9ea).
-* [ ] Print more human readable numbers/dates/etc with [readable](https://crates.io/crates/readable).
-* [ ] Dates (TTLs) currently read while ignoring the time zone, maybe can be fixed with [dateparser](https://crates.io/crates/dateparser)/[parse_datetime](https://crates.io/crates/parse_datetime).
-* [ ] Need to fix exec `s d x -c "echo hello"` not splitting the input string.
+* __Config related__:
+  * [ ] Allow to user to overwrite default behaviors using the config (can be done with [clap-config-file](https://crates.io/crates/clap-config-file)), such as:
+    * Default command at `s docker exec`.
+    * By default `s docker ps` not showing all containers.
+    * By default `s docker logs` always follows.
+    * By default `s docker logs` shows all the logs (no `tail` turned on).
+  * [ ] Handle config file with `confy` instead of manually: `confy = {version = "*", default-features = false, features = ["ron_conf"]} # Configuration management`.
+  * [ ] consider using [config-rs](https://crates.io/crates/config), to better support the 12-factor.
+  * [ ] Support backward compatibility of the configs using [SuperStruct](https://crates.io/crates/superstruct)/[serde](https://ivanbyte.medium.com/backward-compatible-data-de-serialization-with-serde-flow-in-rust-c87a2e8bc9ea).
+* __UX related__:
+  * [ ] `clap` has feature for auto completions to commands.
+    * A different example how to achieve shell completion with [clap_generate](https://github.com/tgm-templates/rust-cli/tree/master).
+  * [ ] `dialoguer` has feature for history to prompts.
+  * [ ] Add better support for unexpected panics with [human-panic](https://github.com/rust-cli/human-panic).
+  * [ ] Add demo to this readme using [Terminalizer](https://github.com/faressoft/terminalizer).
+  * [ ] Add support to multi-lang using [rust-i18n](https://crates.io/crates/rust-i18n/)/[sys-locale](https://crates.io/crates/sys-locale).
+  * [ ] Print more human readable numbers/dates/etc with [readable](https://crates.io/crates/readable).
+* __Testing related__:
+  * [ ] Try mocking library to make testing easier with [injectorpp](https://www.reddit.com/r/rust/comments/1l2qhb6/a_new_mocking_library_to_mock_functions_without/).
+* __Bug fixes__:
+  * [ ] Fix not restoring terminal state correctly when `ctrl+C` inside dialoguer: [workaround](https://github.com/console-rs/dialoguer/issues/294).
+  * [ ] Dates (TTLs) currently read while ignoring the time zone, maybe can be fixed with [dateparser](https://crates.io/crates/dateparser)/[parse_datetime](https://crates.io/crates/parse_datetime).
+  * [ ] Need to fix exec `s d x -c "echo hello"` not splitting the input string.
 
 #### License
 
