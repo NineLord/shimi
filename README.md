@@ -15,6 +15,11 @@ It contains commands that are too inconvenient to type every time, or just hard 
 ## TODOs
 * [x] Changing the config wizard to manually editing specific settings  
 instead of going over all of them each time running the config command.
+* __New features__:
+  * [ ] Change `Kubernetes` to `OpenShift` and add `Kubernetes`.
+  * [ ] Add `Feeling lucky` mode, which guess the container you asked for without user prompts.
+    * The algorithm will save in his own config, the last known `docker ps` state, as `HashMap` between service (from title from `docker-compose.yml`) to his actual container(__s__).
+	* According to this config, it will be able to "add fake" aliases to containers with their "count" number at the end.
 * __Config related__:
   * [ ] Allow to user to overwrite default behaviors using the config (can be done with [clap-config-file](https://crates.io/crates/clap-config-file)), such as:
     * Default command at `s docker exec`.
@@ -38,6 +43,7 @@ instead of going over all of them each time running the config command.
   * [ ] Fix not restoring terminal state correctly when `ctrl+C` inside dialoguer: [workaround](https://github.com/console-rs/dialoguer/issues/294).
   * [ ] Dates (TTLs) currently read while ignoring the time zone, maybe can be fixed with [dateparser](https://crates.io/crates/dateparser)/[parse_datetime](https://crates.io/crates/parse_datetime).
   * [ ] Need to fix exec `s d x -c "echo hello"` not splitting the input string.
+  * [ ] Not showing the container name during the error: `Err(format!("The alias {alias:?} already exists"))`.
 
 #### License
 
