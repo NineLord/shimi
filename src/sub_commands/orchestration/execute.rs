@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use anyhow::Result;
 use clap::{Args, ArgAction::SetTrue};
 use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch}};
@@ -17,8 +18,8 @@ pub struct Arguments {
 	pub is_exact_match: bool,
 
 	/// Overwrite the default command
-	#[arg(short, long, default_value = DEFAULT_COMMAND)]
-	pub command: String,
+	#[arg(short, long, num_args = 1.., default_value = DEFAULT_COMMAND)]
+	pub command: Vec<String>,
 }
 
 impl RunOrchestration for Arguments {
@@ -34,13 +35,19 @@ impl RunOrchestration for Arguments {
 
 		match global_options.get_orchestration_type() {
 			OrchestrationType::DockerCompose => {
-				RunCommand::exec_with_args("docker", ["exec", "--interactive", "--tty", &container_name, &self.command])
+				let prompt = ["exec", "--interactive", "--tty", &container_name];
+
+				let arguments = prompt.iter().map(OsStr::new)
+					.chain(self.command.iter().map(OsStr::new))
+					.collect::<Vec<&OsStr>>();
+
+				RunCommand::exec_with_args("docker", arguments)
 			},
 			OrchestrationType::Kubernetes => {
 				let mut arguments = vec!["exec", "--stdin", "--tty"];
 				global_options.add_name_space(&mut arguments);
 				arguments.push(&container_name);
-				arguments.push(&self.command);
+				self.command.iter().for_each(|command| arguments.push(command));
 				RunCommand::exec_with_args("oc", arguments)
 			},
 		}
