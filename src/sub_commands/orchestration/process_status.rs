@@ -1,11 +1,13 @@
 use anyhow::Result;
 use clap::{Args, ArgAction::SetTrue};
 use super::{command::RunOrchestration, global_orch_options::GlobalOrchOptions};
-use crate::{utils::RunCommand, sub_commands::config::OrchestrationType};
+use crate::{utils::RunCommand, sub_commands::config::OrchestrationType, commands::GetSubCommandAliases};
+
+const VISIBLE_ALIAS: &str = "ps";
 
 /// Shows the current state of your orchestration
 #[derive(Args, Debug)]
-#[command(visible_alias = "ps")]
+#[command(visible_alias = VISIBLE_ALIAS)]
 pub struct Arguments {
 	/// Will display only the container/pods names
 	#[arg(long = "only-names", action = SetTrue)]
@@ -17,6 +19,13 @@ pub struct Arguments {
 In docker-compose it will include not running containers.
 In kubernetes it will include all namespaces.")]
 	pub is_show_all: bool,
+}
+
+impl GetSubCommandAliases for Arguments {
+	fn get_sub_command_aliases() -> &'static [&'static str] {
+		const VISIBLE_ALIASES: [&str ; 1] = [VISIBLE_ALIAS];
+		&VISIBLE_ALIASES
+	}
 }
 
 impl RunOrchestration for Arguments {

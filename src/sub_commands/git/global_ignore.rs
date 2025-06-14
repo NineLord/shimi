@@ -7,7 +7,7 @@ use std::{
 use anyhow::{Context, Result};
 use clap::Args;
 use log::debug;
-use crate::{prelude::*, utils::{default_value_home_dir, RunCommand}, GlobalOptions, Run};
+use crate::{prelude::*, utils::{default_value_home_dir, RunCommand}, GlobalOptions, commands::{GetSubCommandAliases, Run}};
 
 const DEFAULT_FILE_NAME: &str = ".gitignore";
 const COMMON_IGNORES: &[u8] = b"junk
@@ -34,6 +34,13 @@ pub struct Arguments {
 	/// Path to the '.gitignore' file.
 	#[arg(short, long, default_value = default_path().unwrap())]
 	pub path: PathBuf,
+}
+
+impl GetSubCommandAliases for Arguments {
+	fn get_sub_command_aliases() -> &'static [&'static str] {
+		const VISIBLE_ALIASES: [&str ; 0] = [];
+		&VISIBLE_ALIASES
+	}
 }
 
 impl Run for Arguments {

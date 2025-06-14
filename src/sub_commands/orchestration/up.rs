@@ -2,11 +2,13 @@ use anyhow::Result;
 use clap::{Args, ArgAction::{SetFalse, SetTrue}};
 use indexmap::indexset;
 use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch, MatchSource}};
-use crate::{sub_commands::config::OrchestrationType, utils::{ExitError, RunCommand}};
+use crate::{sub_commands::config::OrchestrationType, utils::{ExitError, RunCommand}, commands::GetSubCommandAliases};
+
+const VISIBLE_ALIAS: &str = "start";
 
 /// Starts running container(s)
 #[derive(Args, Debug)]
-#[command(visible_alias = "start")]
+#[command(visible_alias = VISIBLE_ALIAS)]
 pub struct Arguments {
 	/// The name of the container that going to start running.
 	/// If not given, will start all the containers.
@@ -23,6 +25,13 @@ Will be effective only when 'docker-compose' is the chosen orchestration.")]
 	// Shaked-TODO: maybe can ArgGroups with `container_name`?
 	#[arg(short = 'e', long = "exact-match", action = SetTrue)]
 	pub is_exact_match: bool,
+}
+
+impl GetSubCommandAliases for Arguments {
+	fn get_sub_command_aliases() -> &'static [&'static str] {
+		const VISIBLE_ALIASES: [&str ; 1] = [VISIBLE_ALIAS];
+		&VISIBLE_ALIASES
+	}
 }
 
 impl RunOrchestration for Arguments {

@@ -1,4 +1,4 @@
-use std::{fmt::Display, rc::Rc, hash::Hash};
+use std::{fmt::Display, rc::Rc, hash::Hash, iter};
 use log::warn;
 use hashbrown::{HashMap, hash_map::Entry as HashbrownMapEntry, HashSet, Equivalent as EquivalentHashbrown};
 use indexmap::{set::MutableValues, Equivalent as EquivalentIndexMap, IndexMap, IndexSet};
@@ -172,7 +172,7 @@ impl ContainerMapping {
 	/// * If the given `container_name` doesn't already exists.
 	/// * If the given `alias_index` isn't valid index.
 	pub fn shift_remove_index_alias(&mut self, container_name: &str, alias_index: usize) {
-		self.shift_remove_index_aliases(container_name, std::iter::once(alias_index));
+		self.shift_remove_index_aliases(container_name, iter::once(alias_index));
 	}
 
 	/// # Panics
@@ -195,7 +195,7 @@ impl ContainerMapping {
 	/// # Panics
 	/// * If the given `container_name` isn't valid index.
 	pub fn shift_remove_index_container_name(&mut self, container_name: usize) {
-		self.shift_remove_index_container_names(std::iter::once(container_name));
+		self.shift_remove_index_container_names(iter::once(container_name));
 	}
 
 	/// # Panics

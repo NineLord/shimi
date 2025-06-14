@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Args, ArgAction::SetTrue};
 use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch}};
-use crate::{sub_commands::config::OrchestrationType, utils::{ExitError, RunCommand}};
+use crate::{sub_commands::config::OrchestrationType, utils::{ExitError, RunCommand}, commands::GetSubCommandAliases};
 
 /// Gets the container's IP
 #[derive(Args, Debug)]
@@ -12,6 +12,13 @@ pub struct Arguments {
 	/// If true, won't try to convert the container name to his alias.
 	#[arg(short = 'e', long = "exact-match", action = SetTrue)]
 	pub is_exact_match: bool,
+}
+
+impl GetSubCommandAliases for Arguments {
+	fn get_sub_command_aliases() -> &'static [&'static str] {
+		const VISIBLE_ALIASES: [&str ; 0] = [];
+		&VISIBLE_ALIASES
+	}
 }
 
 impl RunOrchestration for Arguments {

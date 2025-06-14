@@ -1,11 +1,13 @@
 use anyhow::Result;
 use clap::{Args, ArgAction::{SetFalse, SetTrue}};
 use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch}};
-use crate::{utils::RunCommand, sub_commands::config::OrchestrationType};
+use crate::{utils::RunCommand, sub_commands::config::OrchestrationType, commands::GetSubCommandAliases};
+
+const VISIBLE_ALIASES: [&str ; 2] = ["l", "log"];
 
 /// Fetch the logs of a container
 #[derive(Args, Debug)]
-#[command(visible_aliases = ["l", "log"])]
+#[command(visible_aliases = VISIBLE_ALIASES)]
 pub struct Arguments {
 	/// The name of the container that going to show his logs
 	pub container_name: String,
@@ -22,6 +24,12 @@ pub struct Arguments {
 	#[arg(short = 'e', long = "exact-match", action = SetTrue)]
 	pub is_exact_match: bool,
 
+}
+
+impl GetSubCommandAliases for Arguments {
+	fn get_sub_command_aliases() -> &'static [&'static str] {
+		&VISIBLE_ALIASES
+	}
 }
 
 impl RunOrchestration for Arguments {

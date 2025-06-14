@@ -1,11 +1,13 @@
 use anyhow::Result;
 use clap::{Args, ArgAction::SetTrue};
 use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch}};
-use crate::{sub_commands::config::OrchestrationType, utils::{ExitError, RunCommand}};
+use crate::{sub_commands::config::OrchestrationType, utils::{ExitError, RunCommand}, commands::GetSubCommandAliases};
+
+const VISIBLE_ALIASES: [&str ; 3] = ["pf", "export", "ex"];
 
 /// Expose the port of a given container to your local machine.
 #[derive(Args, Debug)]
-#[command(visible_aliases = ["pf", "export", "ex"])]
+#[command(visible_aliases = VISIBLE_ALIASES)]
 pub struct Arguments {
 	/// The name of the container that going to expose his port.
 	pub container_name: String,
@@ -19,6 +21,12 @@ pub struct Arguments {
 	/// If true, won't try to convert the container name to his alias.
 	#[arg(short = 'e', long = "exact-match", action = SetTrue)]
 	pub is_exact_match: bool,
+}
+
+impl GetSubCommandAliases for Arguments {
+	fn get_sub_command_aliases() -> &'static [&'static str] {
+		&VISIBLE_ALIASES
+	}
 }
 
 impl RunOrchestration for Arguments {

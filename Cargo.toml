@@ -9,7 +9,8 @@ default = []
 dry_run = []
 
 [dependencies]
-tap = "1.0.1" # Allows to tap/pipe/conv on any variable
+tap = { version = "1.0.1" } # Allows to tap/pipe/conv on any variable
+itertools = { version = "0.14.0" } # Iterators and combinator
 
 clap = { version = "4.5.17", features = ["derive", "cargo", "env", "string"] } # Handles parsing input from command line
 ctrlc = { version = "3.4.7"} # Handles Ctrl+C signal

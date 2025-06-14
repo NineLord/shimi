@@ -1,8 +1,12 @@
-use std::process;
+use std::{env, ffi::OsString, process, iter};
 use anyhow::Result;
-use clap::{ArgAction::SetTrue, CommandFactory, FromArgMatches, Parser, Subcommand};
+use clap::{ArgAction::SetTrue, ArgMatches, CommandFactory, FromArgMatches, Parser, Subcommand};
 use log::{warn, error};
-use crate::{logger, sub_commands::{self, config::{self, Config}}, Run};
+use strum::{VariantArray, IntoStaticStr, EnumDiscriminants};
+use itertools::Itertools;
+use lazy_static::lazy_static;
+use hashbrown::HashMap;
+use crate::{commands::{ExpandedAlias, GetAllExpandedAliases, GetExpandedAliases, GetSubCommandAliases, GetSubCommandsNames, Run}, logger, sub_commands::{config::{self, Config}, git, orchestration}};
 
 #[allow(clippy::needless_raw_string_hashes)]
 const SHIMI_ASCII: &str = r#"
@@ -17,11 +21,16 @@ const SHIMI_ASCII: &str = r#"
 #[command(name = "s", bin_name = "s")]
 #[command(about = "Common shortcuts for developers.")]
 #[command(about = format!("{SHIMI_ASCII}
-Common shortcuts for developers."))]
+Common shortcuts for developers.
+Note: Commands with sub-commands can be written without space between them."))] // TODO: add underscore to `Note`.
 #[command(long_about = format!("{SHIMI_ASCII}
 A Script of common things a developer might need.
 It contains commands that are too inconvenient to type every time,
-or just hard to remember."))]
+or just hard to remember.
+
+Note: Commands with sub-commands can be written without space between them.
+For example: s docker logs ...
+Is the same as: s dockerlogs ..."))] // TODO: add underscore to `Note`.
 #[command(version)]
 pub struct TopCommand {
 	#[arg(short = 'v', long = "verbose", global = true, action = SetTrue,
@@ -44,6 +53,18 @@ pub struct GlobalOptions {
 	pub version: String,
 	pub config: Config,
 	pub is_fail_to_parse_config: bool,
+}
+
+lazy_static! {
+    pub static ref MERGED_COMMANDS_NAMES: HashMap<OsString, ExpandedAlias> = {
+		let mut map = HashMap::new();
+		TopCommand::get_all_expanded_aliases()
+			.for_each(|expanded_alias| {
+				let ExpandedAlias { command, sub_command } = &expanded_alias;
+				map.insert(OsString::from(format!("{command}{sub_command}")), expanded_alias);
+			});
+		map
+    };
 }
 
 impl TopCommand {
@@ -84,7 +105,7 @@ Continuing with default config."); // No backward support as of yet.
 	fn parse_version() -> (Option<String>, Self) {
 		let command = <Self as CommandFactory>::command();
 		let version = command.get_version().map(String::from);
-		let mut matches = command.get_matches();
+		let mut matches = Self::get_expanded_matches(command);
         let result = <Self as FromArgMatches>::from_arg_matches_mut(&mut matches)
             .map_err(|error| {
 				let mut command = <Self as CommandFactory>::command();
@@ -95,13 +116,81 @@ Continuing with default config."); // No backward support as of yet.
             Err(error) => error.exit(),
         }
 	}
+
+	fn get_expanded_matches(command: clap::Command) -> ArgMatches {
+		let mut input = env::args_os();
+		
+		let Some(exe_path) = input.next() else {
+			return command.get_matches();
+		};
+		let mut result = Vec::with_capacity(10);
+		result.push(exe_path);
+
+		while let Some(arg) = input.next() {
+			if arg.to_string_lossy().starts_with('-') { // Can be optimized to use `os_str_bytes` for Unix specifically.
+				// Ignore all the first flags
+				result.push(arg);
+			} else if let Some(ExpandedAlias { command: sub_command, sub_command: sub_sub_command }) = MERGED_COMMANDS_NAMES.get(arg.as_os_str()) {
+				// Found the first none flag argument and it's an alias
+				result.push(OsString::from(sub_command));
+				result.push(OsString::from(sub_sub_command));
+				result.extend(input);
+				return command.get_matches_from(result);
+			} else {
+				// Found the first none flag argument and isn't an alias
+				return command.get_matches();
+			}
+		}
+		
+		// Couldn't find any none flag argument
+		command.get_matches()
+	}
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, EnumDiscriminants)]
+#[strum_discriminants(derive(IntoStaticStr, VariantArray))]
+#[strum_discriminants(strum(serialize_all = "kebab-case"))]
 pub enum SubCommands {
-	Git(sub_commands::git::Command),
-	Orchestration(sub_commands::orchestration::Command),
-	Config(sub_commands::config::Command),
+	Git(git::Command),
+	Orchestration(orchestration::Command),
+	Config(config::Command),
+}
+
+impl GetExpandedAliases for SubCommandsDiscriminants {
+	fn get_expanded_aliases(self) -> impl Iterator<Item = ExpandedAlias> {
+		let command: &'static str = self.into();
+		let command = iter::once(command);
+		let (command_aliases, sub_commands_names): (_, Vec<&'static str>) = match self {
+			Self::Git => (
+				git::Command::get_sub_command_aliases(),
+				git::Command::get_sub_commands_names().collect()
+			),
+			Self::Orchestration => (
+				orchestration::Command::get_sub_command_aliases(),
+				orchestration::Command::get_sub_commands_names().collect()
+			),
+			Self::Config => (
+				config::Command::get_sub_command_aliases(),
+				config::Command::get_sub_commands_names().collect()
+			),
+		};
+
+		let command_names = command_aliases.iter()
+			.copied()
+			.chain(command);
+
+		command_names
+			.cartesian_product(sub_commands_names)
+			.map(|(command, sub_command)| ExpandedAlias { command, sub_command })
+	}
+}
+
+impl GetAllExpandedAliases for TopCommand {
+	fn get_all_expanded_aliases() -> impl Iterator<Item = ExpandedAlias> {
+		SubCommandsDiscriminants::VARIANTS
+			.iter()
+			.flat_map(|command| command.get_expanded_aliases())
+	}
 }
 
 impl Run for SubCommands {

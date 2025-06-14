@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Args;
-use crate::{utils::{is_valid_email, RunCommand}, GlobalOptions, Run, prelude::*};
+use crate::{utils::{is_valid_email, RunCommand}, GlobalOptions, commands::{GetSubCommandAliases, Run}, prelude::*};
 
 #[derive(Args, Debug)]
 #[command(about = "Set globally your user name and email.")]
@@ -14,6 +14,13 @@ pub struct Arguments {
 	/// The email of your git account.
 	#[arg(value_parser = is_valid_email)]
 	pub email: String,
+}
+
+impl GetSubCommandAliases for Arguments {
+	fn get_sub_command_aliases() -> &'static [&'static str] {
+		const VISIBLE_ALIASES: [&str ; 0] = [];
+		&VISIBLE_ALIASES
+	}
 }
 
 impl Run for Arguments {

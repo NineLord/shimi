@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, iter};
 use hashbrown::HashSet;
 use humantime::{parse_duration, parse_rfc3339_weak};
 use anyhow::Result;
@@ -13,7 +13,7 @@ use super::{
 	structure::{Config, Kubernetes, OrchestrationType},
 };
 use crate::{
-	Run,
+	commands::{GetSubCommandAliases, GetSubCommandsNames, Run},
 	GlobalOptions,
 	prompts::{input::Input, multi_select::ToDefaults, prompter::Prompter, selection::{from_repr, Options, Selection, SelectionReturn}},
 };
@@ -698,6 +698,19 @@ impl <T: Theme> Wizard<'_, T> {
 			}
 			select = selected;
 		}
+	}
+}
+
+impl GetSubCommandAliases for Command {
+	fn get_sub_command_aliases() -> &'static [&'static str] {
+		const VISIBLE_ALIASES: [&str ; 0] = [];
+		&VISIBLE_ALIASES
+	}
+}
+
+impl GetSubCommandsNames for Command {
+	fn get_sub_commands_names() -> impl Iterator<Item = &'static str> {
+		iter::empty()
 	}
 }
 

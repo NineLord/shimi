@@ -7,6 +7,7 @@ pub mod top_command;
 pub mod logger;
 pub mod utils;
 pub mod style;
+pub mod commands;
 pub mod prelude;
 pub mod prompts {
 	pub mod prompter;
@@ -58,15 +59,8 @@ pub use top_command::GlobalOptions;
 
 use anyhow::{Context, Result};
 use log::{error, trace};
-use top_command::TopCommand;
-
-use crate::top_command::SubCommands;
-
-pub trait Run : Sized {
-	/// # Errors
-	/// Should return an error with explanation why the command couldn't run.
-	fn run(self, global_options: &GlobalOptions) -> Result<()>;
-}
+use top_command::{TopCommand, SubCommands};
+use commands::Run;
 
 fn main() {
 	let (global_options, command) = TopCommand::parse();

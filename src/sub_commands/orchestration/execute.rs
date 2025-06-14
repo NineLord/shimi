@@ -2,13 +2,14 @@ use std::ffi::OsStr;
 use anyhow::Result;
 use clap::{Args, ArgAction::SetTrue};
 use super::{command::RunOrchestration, global_orch_options::{GlobalOrchOptions, IsExactMatch, IsTryGetMatch}};
-use crate::{utils::RunCommand, sub_commands::config::OrchestrationType};
+use crate::{utils::RunCommand, sub_commands::config::OrchestrationType, commands::GetSubCommandAliases};
 
 const DEFAULT_COMMAND: &str = "/bin/bash";
+const VISIBLE_ALIASES: [&str ; 4] = ["x", "exec", "ent", "enter"];
 
 /// Run a command in a running container
 #[derive(Args, Debug)]
-#[command(visible_aliases = ["x", "exec", "ent", "enter"])]
+#[command(visible_aliases = VISIBLE_ALIASES)]
 pub struct Arguments {
 	/// The name of the container that going to execute the command
 	pub container_name: String,
@@ -20,6 +21,12 @@ pub struct Arguments {
 	/// Overwrite the default command
 	#[arg(short, long, num_args = 1.., default_value = DEFAULT_COMMAND)]
 	pub command: Vec<String>,
+}
+
+impl GetSubCommandAliases for Arguments {
+	fn get_sub_command_aliases() -> &'static [&'static str] {
+		&VISIBLE_ALIASES
+	}
 }
 
 impl RunOrchestration for Arguments {
