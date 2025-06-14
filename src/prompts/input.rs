@@ -1,6 +1,6 @@
 use anyhow::Result;
 use dialoguer::{Input as PromptInput, InputValidator};
-use super::prompter::Prompter;
+use super::prompter::{Prompter, interrupted_handle};
 
 pub enum Input {
 	NoneEmpty(String),
@@ -44,7 +44,7 @@ impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
 		if let Some(initial_text) = initial_text {
 			input = input.with_initial_text(initial_text);
 		}
-		let result: String = input.interact_text()?;
+		let result: String = interrupted_handle(input.interact_text(), true)?;
 		let result = result.trim().to_owned();
 
 		let result = if result.is_empty() {

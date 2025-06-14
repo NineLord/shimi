@@ -38,7 +38,7 @@ impl RunOrchestration for Arguments {
 
 #[allow(clippy::items_after_statements, unreachable_code, unused)]
 pub fn stop(global_options: &GlobalOrchOptions, container_name: String, is_exact_match: bool, is_remove: bool) -> Result<()> {
-	ExitError::NotYetImplemented.exit("down::stop");
+	ExitError::NotYetImplemented.exit_with_message("down::stop");
 	let container_name = {
 		let options = if is_exact_match {
 			IsExactMatch::Yes
@@ -71,7 +71,7 @@ pub fn stop(global_options: &GlobalOrchOptions, container_name: String, is_exact
 
 #[allow(clippy::items_after_statements, unreachable_code, unused)]
 pub fn stop_all(global_options: &GlobalOrchOptions, _is_remove: bool) -> Result<()> {
-	ExitError::NotYetImplemented.exit("down::stop_all");
+	ExitError::NotYetImplemented.exit_with_message("down::stop_all");
 	match global_options.get_orchestration_type() {
 		OrchestrationType::DockerCompose => {
 			RunCommand::exec_with_args("docker", ["up"])

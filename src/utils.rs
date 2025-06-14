@@ -84,7 +84,7 @@ impl RunCommand {
 		};
 
 		if !output.status.success() {
-			ExitError::BadExitCode.exit(format!("Failed to run the command: {command:?}
+			ExitError::BadExitCode.exit_with_message(format!("Failed to run the command: {command:?}
 Returned with bad exit code: {output:?}"));
 		}
 
@@ -140,19 +140,30 @@ pub enum ExitError {
 	BadExitCode,
 	/// For work in progress sections.
 	NotYetImplemented,
+	/// If the process was interrupted (Ctrl-C).
+	Interrupted,
 	/// Other reason.
 	Other,
 }
 impl ExitError {
-	pub fn exit(self, message: impl Display) -> ! {
-		if matches!(&self, &Self::NotYetImplemented) {
-			error!("Not yet implemented: {message}");
-		} else {
-			error!("{message}");
+	pub fn exit_with_message(self, message: impl Display) -> ! {
+		self.exit_handler(Some(message))
+	}
+
+	pub fn exit(self) -> ! {
+		self.exit_handler(None::<&'static str>)
+	}
+
+	fn exit_handler(self, message: Option<impl Display>) -> ! {
+		match (&self, message) {
+			(Self::NotYetImplemented, Some(message)) => error!("Not yet implemented: {message}"),
+			(Self::NotYetImplemented, None) => error!("Not yet implemented"),
+			(_, Some(message)) => error!("{message}"),
+			(_, None) => (),
 		}
 		match self {
 			Self::BadArgument => process::exit(2),
-			Self::Other | Self::BadExitCode | Self::NotYetImplemented => process::exit(1),
+			Self::Other | Self::BadExitCode | Self::NotYetImplemented | Self::Interrupted => process::exit(1),
 		}
 	}
 }

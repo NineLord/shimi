@@ -40,7 +40,7 @@ instead of going over all of them each time running the config command.
 * __Testing related__:
   * [ ] Try mocking library to make testing easier with [injectorpp](https://www.reddit.com/r/rust/comments/1l2qhb6/a_new_mocking_library_to_mock_functions_without/).
 * __Bug fixes__:
-  * [ ] Fix not restoring terminal state correctly when `ctrl+C` inside dialoguer: [workaround](https://github.com/console-rs/dialoguer/issues/294).
+  * [x] Fix not restoring terminal state correctly when `ctrl+C` inside dialoguer: [workaround](https://github.com/console-rs/dialoguer/issues/294).
   * [ ] Dates (TTLs) currently read while ignoring the time zone, maybe can be fixed with [dateparser](https://crates.io/crates/dateparser)/[parse_datetime](https://crates.io/crates/parse_datetime).
   * [ ] Need to fix exec `s d x -c "echo hello"` not splitting the input string.
   * [ ] Not showing the container name during the error: `Err(format!("The alias {alias:?} already exists"))`.

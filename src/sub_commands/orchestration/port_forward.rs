@@ -24,7 +24,7 @@ pub struct Arguments {
 impl RunOrchestration for Arguments {
 	#[allow(clippy::items_after_statements, unreachable_code, unused)]
 	fn run_orch(self, global_options: &GlobalOrchOptions) -> Result<()> {
-		ExitError::NotYetImplemented.exit("port_forward::run_orch");
+		ExitError::NotYetImplemented.exit_with_message("port_forward::run_orch");
 		let container_name = {
 			let options = if self.is_exact_match {
 				IsExactMatch::Yes

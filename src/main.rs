@@ -2,6 +2,7 @@
 // #![allow(unused, dead_code)]
 #![deny(unused_must_use)]
 
+//#region lib.rs
 pub mod top_command;
 pub mod logger;
 pub mod utils;
@@ -52,10 +53,13 @@ pub mod sub_commands {
 	}
 }
 pub use top_command::GlobalOptions;
+//#endregion
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use log::{error, trace};
 use top_command::TopCommand;
+
+use crate::top_command::SubCommands;
 
 pub trait Run : Sized {
 	/// # Errors
@@ -68,12 +72,21 @@ fn main() {
 
 	trace!("Input - Command:\n{command:#?}");
 	trace!("Input - Global Options:\n{global_options:#?}");
-	
-	if let Err(error) = command.run(&global_options) {
+
+	if let Err(error) = handle_command(&global_options, command) {
 		if global_options.is_verbose {
 			error!("{error:?}");
 		} else {
 			error!("{error}");
 		}
 	}
+}
+
+fn handle_command(global_options: &GlobalOptions, command: SubCommands) -> Result<()> {
+	ctrlc::set_handler(move || {
+		// Ignore SIGINT so it can be handled by `dialoguer`.
+		// https://github.com/console-rs/dialoguer/issues/294
+	}).context("Failed setting Ctrl-C handler")?;
+	
+	command.run(global_options)
 }

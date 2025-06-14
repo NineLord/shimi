@@ -36,7 +36,7 @@ impl RunOrchestration for Arguments {
 
 #[allow(clippy::items_after_statements, unreachable_code, unused)]
 pub fn start(global_options: &GlobalOrchOptions, container_name: String, is_exact_match: bool, is_also_create: bool) -> Result<()> {
-	ExitError::NotYetImplemented.exit("up::start");
+	ExitError::NotYetImplemented.exit_with_message("up::start");
 	let container_name = {
 		let options = match (is_exact_match, global_options.get_orchestration_type()) {
 			(true, _) => IsExactMatch::Yes,
@@ -66,7 +66,7 @@ pub fn start(global_options: &GlobalOrchOptions, container_name: String, is_exac
 
 #[allow(clippy::items_after_statements, unreachable_code, unused)]
 pub fn start_all(global_options: &GlobalOrchOptions, _is_also_create: bool) -> Result<()> {
-	ExitError::NotYetImplemented.exit("up::start_all");
+	ExitError::NotYetImplemented.exit_with_message("up::start_all");
 	match global_options.get_orchestration_type() {
 		OrchestrationType::DockerCompose => {
 			RunCommand::exec_with_args("docker", ["up"])

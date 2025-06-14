@@ -12,6 +12,7 @@ dry_run = []
 tap = "1.0.1" # Allows to tap/pipe/conv on any variable
 
 clap = { version = "4.5.17", features = ["derive", "cargo", "env", "string"] } # Handles parsing input from command line
+ctrlc = { version = "3.4.7"} # Handles Ctrl+C signal
 
 anyhow = { version = "1.0.97" } # Error handling
 lazy_static = { version = "1.5.0" } # Lazy initialization of static variables

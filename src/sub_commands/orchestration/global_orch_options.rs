@@ -44,7 +44,7 @@ impl <'cfg> GlobalOrchOptions<'cfg> {
 	pub fn add_name_space<'args>(&'cfg self, arguments: &'args mut Vec<&'cfg str>) {
 		let name_space: &'cfg String = match self.get_name_space() {
 			Ok(name_space) => name_space,
-			Err(error) => ExitError::BadArgument.exit(error),
+			Err(error) => ExitError::BadArgument.exit_with_message(error),
 		};
 
 		arguments.push("--namespace");
@@ -146,7 +146,7 @@ impl GlobalOrchOptions<'_> {
 			})?;
 
 		if containers.is_empty() {
-			ExitError::BadArgument.exit(format!("Couldn't find container with the name {input:?} or alias for it"));
+			ExitError::BadArgument.exit_with_message(format!("Couldn't find container with the name {input:?} or alias for it"));
 		}
 
 		let result = if containers.len() == 1 {

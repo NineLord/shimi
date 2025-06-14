@@ -1,6 +1,6 @@
 use anyhow::Result;
 use dialoguer::FuzzySelect;
-use super::{prompter::Prompter, selection::{Options, Selection, SelectionReturn, insert_options_and_set_default, AnyItem, Item, Items, Selected, SelectedReturn}};
+use super::{prompter::{Prompter, interrupted_handle}, selection::{Options, Selection, SelectionReturn, insert_options_and_set_default, AnyItem, Item, Items, Selected, SelectedReturn}};
 
 impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
 	/// # Errors
@@ -11,7 +11,7 @@ impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
 
 		insert_options_and_set_default!(fuzzy_select, options);
 
-		Ok(options.get_selection(fuzzy_select.interact()?))
+		Ok(options.get_selection(interrupted_handle(fuzzy_select.interact(), false)?))
 	}
 
 	/// # Errors
@@ -22,7 +22,7 @@ impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
 
 		insert_options_and_set_default!(fuzzy_select, options);
 
-		Ok(options.get_selection(fuzzy_select.interact()?))
+		Ok(options.get_selection(interrupted_handle(fuzzy_select.interact(), false)?))
 	}
 
 	fn get_fuzzy_select<Prompt: Into<String>>(&self, prompt: Prompt) -> FuzzySelect {

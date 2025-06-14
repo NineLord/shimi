@@ -1,6 +1,6 @@
 use anyhow::Result;
 use dialoguer::MultiSelect;
-use super::prompter::Prompter;
+use super::prompter::{Prompter, interrupted_handle};
 
 impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
 	/// # Errors
@@ -14,7 +14,7 @@ impl <Theme: dialoguer::theme::Theme> Prompter<Theme> {
 		if let Some(selected) = selected {
 			multi_select = multi_select.defaults(&selected);
 		}
-		Ok(multi_select.interact_opt()?)
+		interrupted_handle(multi_select.interact_opt(), false)
 	}
 }
 
