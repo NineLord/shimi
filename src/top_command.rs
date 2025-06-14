@@ -4,21 +4,24 @@ use clap::{ArgAction::SetTrue, CommandFactory, FromArgMatches, Parser, Subcomman
 use log::{warn, error};
 use crate::{logger, sub_commands::{self, config::{self, Config}}, Run};
 
-#[allow(dead_code, clippy::needless_raw_string_hashes)]
-const SHIMI: &str = r#"
+#[allow(clippy::needless_raw_string_hashes)]
+const SHIMI_ASCII: &str = r#"
    _____ __    _           _ 
   / ___// /_  (_)___ ___  (_)
   \__ \/ __ \/ / __ `__ \/ / 
  ___/ / / / / / / / / / / /  
 /____/_/ /_/_/_/ /_/ /_/_/   
-"#; // TODO: add this to the long help
+"#;
 
 #[derive(Parser, Debug)]
 #[command(name = "s", bin_name = "s")]
 #[command(about = "Common shortcuts for developers.")]
-#[command(long_about = "A Script of common things a developer might need.
+#[command(about = format!("{SHIMI_ASCII}
+Common shortcuts for developers."))]
+#[command(long_about = format!("{SHIMI_ASCII}
+A Script of common things a developer might need.
 It contains commands that are too inconvenient to type every time,
-or just hard to remember.")]
+or just hard to remember."))]
 #[command(version)]
 pub struct TopCommand {
 	#[arg(short = 'v', long = "verbose", global = true, action = SetTrue,
