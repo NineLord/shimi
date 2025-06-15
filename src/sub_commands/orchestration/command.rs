@@ -18,10 +18,12 @@ pub trait RunOrchestration : Sized {
 #[command(visible_aliases = VISIBLE_ALIASES)]
 pub struct Command {
 	#[arg(long = "type", global = true, value_enum,
+	help_heading = Some("Orchestration's Options"),
 	help = "Overwrite the orchestration type taken from the config")]
 	pub orchestration_type: Option<OrchestrationType>,
 
 	#[arg(short = 'n', long = "namespace", global = true,
+	help_heading = Some("Orchestration's Options"),
 	help = "Overwrite the namespace taken from the config",
 	long_help = "Overwrite the namespace taken from the config.
 Will be effective only when 'kubernetes' is the chosen orchestration."

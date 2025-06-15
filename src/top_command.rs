@@ -48,6 +48,7 @@ Is the same as: s dockerlogs ..."))]
 #[command(version)]
 pub struct TopCommand {
 	#[arg(short = 'v', long = "verbose", global = true, action = SetTrue,
+	 	help_heading = Some("Global Options"),
 		help = "Prints extra information about what happens at run time",
 		long_help = "Prints extra information about what happens at run time.
 In addition it changes the logger to TRACE.

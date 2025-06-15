@@ -23,7 +23,6 @@ pub struct Arguments {
 	/// If true, won't try to convert the container name to his alias.
 	#[arg(short = 'e', long = "exact-match", action = SetTrue)]
 	pub is_exact_match: bool,
-
 }
 
 impl GetSubCommandAliases for Arguments {
