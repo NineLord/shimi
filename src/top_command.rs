@@ -1,11 +1,14 @@
 use std::{env, ffi::OsString, process, iter};
+use anstyle::{AnsiColor, Color, Effects, RgbColor, Style};
 use anyhow::Result;
-use clap::{ArgAction::SetTrue, ArgMatches, CommandFactory, FromArgMatches, Parser, Subcommand};
+use clap::{builder::Styles, ArgAction::SetTrue, ArgMatches, CommandFactory, FromArgMatches, Parser, Subcommand};
 use log::{warn, error};
 use strum::{VariantArray, IntoStaticStr, EnumDiscriminants};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use hashbrown::HashMap;
+use const_format::concatcp;
+use simply_colored::{DIM_YELLOW, RESET, UNDERLINE};
 use crate::{commands::{ExpandedAlias, GetAllExpandedAliases, GetExpandedAliases, GetSubCommandAliases, GetSubCommandsNames, Run}, logger, sub_commands::{config::{self, Config}, git, orchestration}};
 
 #[allow(clippy::needless_raw_string_hashes)]
@@ -16,21 +19,32 @@ const SHIMI_ASCII: &str = r#"
  ___/ / / / / / / / / / / /  
 /____/_/ /_/_/_/ /_/ /_/_/   
 "#;
+const SHIMI_COLORED: &str = concatcp!(DIM_YELLOW, SHIMI_ASCII, RESET);
+const NOTE_COLORED: &str = concatcp!(UNDERLINE, "Note:", RESET);
+const STYLES: Styles = Styles::styled() // Cargo colors: https://github.com/crate-ci/clap-cargo/blob/fa44ab6d7b756d69b5e2a92364f3a8a02a2fdab7/src/style.rs
+		.usage(AnsiColor::BrightRed.on_default().bold().underline())
+		.header(Style::new().fg_color(Some(Color::Rgb(RgbColor(255, 194, 102)))).bold().underline())
+		.literal(AnsiColor::BrightWhite.on_default().bold())
+		.placeholder(AnsiColor::BrightWhite.on_default().italic())
+		.error(AnsiColor::BrightRed.on_default().effects(Effects::CURLY_UNDERLINE))
+		.valid(AnsiColor::Green.on_default().bold())
+		.invalid(AnsiColor::BrightRed.on_default());
 
 #[derive(Parser, Debug)]
 #[command(name = "s", bin_name = "s")]
 #[command(about = "Common shortcuts for developers.")]
-#[command(about = format!("{SHIMI_ASCII}
+#[command(about = format!("{SHIMI_COLORED}
 Common shortcuts for developers.
-Note: Commands with sub-commands can be written without space between them."))] // TODO: add underscore to `Note`.
-#[command(long_about = format!("{SHIMI_ASCII}
+{NOTE_COLORED} Commands with sub-commands can be written without space between them."))]
+#[command(long_about = format!("{SHIMI_COLORED}
 A Script of common things a developer might need.
 It contains commands that are too inconvenient to type every time,
 or just hard to remember.
 
-Note: Commands with sub-commands can be written without space between them.
+{NOTE_COLORED} Commands with sub-commands can be written without space between them.
 For example: s docker logs ...
-Is the same as: s dockerlogs ..."))] // TODO: add underscore to `Note`.
+Is the same as: s dockerlogs ..."))]
+#[command(styles=STYLES)]
 #[command(version)]
 pub struct TopCommand {
 	#[arg(short = 'v', long = "verbose", global = true, action = SetTrue,

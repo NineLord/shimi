@@ -35,6 +35,9 @@ state-shift = { version = "2.1.1" } # Type State Machine
 
 ron = { version = "0.10.1" } # Ron format
 colored = { version = "3.0.0" } # Color strings for the terminal
+const_format = { version = "0.2.34" } # Compile-time string formatting
+simply_colored = { version = "0.1.0" } # Const colors
+anstyle = { version = "1.0.11" } # ANSI style formatting
 dialoguer = { version = "0.11.0", features = ["fuzzy-select"] } # Interactive command line dialog
 humantime = "2.2.0" # Human readable time
 

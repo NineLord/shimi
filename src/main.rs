@@ -6,7 +6,6 @@
 pub mod top_command;
 pub mod logger;
 pub mod utils;
-pub mod style;
 pub mod commands;
 pub mod prelude;
 pub mod prompts {
