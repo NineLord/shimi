@@ -257,8 +257,8 @@ impl <T: Theme> Wizard<'_, T> {
 			let alias = alias.trim();
 			if alias.is_empty() {
 				Ok(())
-			} else if container_to_alias.contains_alias(alias) {
-				Err(format!("The alias {alias:?} already exists")) // TODO: add the container name that has this alias
+			} else if let Some(container_name) = container_to_alias.get_container_name_for_alias(alias) {
+				Err(format!("The alias {alias:?} is already mapped to the container {container_name:?}"))
 			} else {
 				Ok(())
 			}
@@ -438,8 +438,8 @@ impl <T: Theme> Wizard<'_, T> {
 				} else if alias.get_name() == new_alias {
 					is_same_alias_name = true;
 					Ok(())
-				} else if alias.contains_alias(new_alias) {
-					Err(format!("The alias {new_alias:?} already exists")) // TODO: add the container name that has this alias
+				} else if let Some(container_name) = alias.get_container_name_for_alias(new_alias) {
+					Err(format!("The alias {new_alias:?} is already mapped to the container {container_name:?}"))
 				} else {
 					Ok(())
 				}

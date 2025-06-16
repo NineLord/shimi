@@ -35,7 +35,7 @@ impl Display for ContainerAlias {
 }
 
 pub type ContainerToAlias = IndexMap<RcContainerName, IndexSet<ContainerAlias>>;
-pub type Aliases = HashSet<RcAlias>;
+pub type Aliases = HashMap<RcAlias, RcContainerName>;
 #[derive(Debug)]
 pub struct ContainerMapping {
 	containers: ContainerToAlias,
@@ -119,8 +119,8 @@ impl ContainerMapping {
 		self.containers.contains_key(container_name)
 	}
 
-	pub fn contains_alias<A: ?Sized + Hash + EquivalentHashbrown<Rc<str>>>(&self, alias: &A) -> bool {
-		self.aliases.contains(alias)
+	pub fn get_container_name_for_alias<A: ?Sized + Hash + EquivalentHashbrown<Rc<str>>>(&self, alias: &A) -> Option<&RcContainerName> {
+		self.aliases.get(alias)
 	}
 }
 
@@ -234,8 +234,8 @@ impl AliasEntry<'_> {
 		self.alias.name.as_ref()
 	}
 
-	pub fn contains_alias<A: ?Sized + Hash + EquivalentHashbrown<Rc<str>>>(&self, alias: &A) -> bool {
-		self.aliases.contains(alias)
+	pub fn get_container_name_for_alias<A: ?Sized + Hash + EquivalentHashbrown<Rc<str>>>(&self, alias: &A) -> Option<&RcContainerName> {
+		self.aliases.get(alias)
 	}
 
 	pub fn get_ttl(&self) -> TtlRef<'_> {
