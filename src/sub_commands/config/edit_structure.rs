@@ -1,6 +1,6 @@
 use std::{fmt::Display, rc::Rc, hash::Hash, iter};
 use log::warn;
-use hashbrown::{HashMap, hash_map::Entry as HashbrownMapEntry, HashSet, Equivalent as EquivalentHashbrown};
+use hashbrown::{HashMap, hash_map::Entry as HashbrownMapEntry, Equivalent as EquivalentHashbrown};
 use indexmap::{set::MutableValues, Equivalent as EquivalentIndexMap, IndexMap, IndexSet};
 use time::PrimitiveDateTime;
 use lazy_static::lazy_static;
@@ -35,7 +35,7 @@ impl Display for ContainerAlias {
 }
 
 pub type ContainerToAlias = IndexMap<RcContainerName, IndexSet<ContainerAlias>>;
-pub type Aliases = HashSet<RcAlias>;
+pub type Aliases = HashMap<RcAlias, RcContainerName>;
 #[derive(Debug)]
 pub struct ContainerMapping {
 	containers: ContainerToAlias,
@@ -49,10 +49,11 @@ impl ContainerMapping {
 		aliases
 			.iter()
 			.map(|(alias, container_name)| (alias.clone(), container_name.clone()))
-			.fold(Self { containers: IndexMap::new(), aliases: HashSet::new() }, |mut result, (alias, ContainerName { name: container_name, ttl })| {
+			.fold(Self { containers: IndexMap::new(), aliases: HashMap::new() }, |mut result, (alias, ContainerName { name: container_name, ttl })| {
 				let alias = Rc::from(alias);
-				result.containers.entry(Rc::from(container_name)).or_default().insert(ContainerAlias { name: Rc::clone(&alias), ttl });
-				result.aliases.insert(alias);
+				let container_name = Rc::from(container_name);
+				result.containers.entry(Rc::clone(&container_name)).or_default().insert(ContainerAlias { name: Rc::clone(&alias), ttl });
+				result.aliases.insert(alias, container_name);
 				result
 			})
 	}
@@ -119,8 +120,8 @@ impl ContainerMapping {
 		self.containers.contains_key(container_name)
 	}
 
-	pub fn contains_alias<A: ?Sized + Hash + EquivalentHashbrown<Rc<str>>>(&self, alias: &A) -> bool {
-		self.aliases.contains(alias)
+	pub fn get_container_name_for_alias<A: ?Sized + Hash + EquivalentHashbrown<Rc<str>>>(&self, alias: &A) -> Option<&RcContainerName> {
+		self.aliases.get(alias)
 	}
 }
 
@@ -128,24 +129,25 @@ impl ContainerMapping {
 	/// # Panics
 	/// * If the given `alias` already exists.
 	pub fn insert_new_container_and_alias(&mut self, container_name: RcContainerName, alias: RcAlias, ttl: Ttl) {
+		let container_name_cloned = Rc::clone(&container_name);
 		let aliases = self.containers.entry(container_name).or_default();
-		Self::insert_new_alias_helper(&mut self.aliases, aliases, alias, ttl);
+		Self::insert_new_alias_helper(&mut self.aliases, aliases, alias, container_name_cloned, ttl);
 	}
 
 	/// # Panics
 	/// * If the given `container_name` doesn't exists.
 	/// * If the given `alias` already exists.
 	pub fn insert_new_alias(&mut self, container_name: &str, alias: RcAlias, ttl: Ttl) {
-		let aliases = self.containers.get_mut(container_name)
+		let (_, container_name, aliases) = self.containers.get_full_mut(container_name)
 			.expect("The given container_name doesn't exists");
-		Self::insert_new_alias_helper(&mut self.aliases, aliases, alias, ttl);
+		Self::insert_new_alias_helper(&mut self.aliases, aliases, alias, Rc::clone(container_name), ttl);
 	}
 
 	/// # Panics
 	/// * If the given `alias` already exists.
-	fn insert_new_alias_helper(total_aliases: &mut Aliases, container_aliases: &mut IndexSet<ContainerAlias>, alias: RcAlias, ttl: Ttl) {
-		let is_new_alias = total_aliases.insert(Rc::clone(&alias));
-		debug_assert!(is_new_alias, "The given alias already exists");
+	fn insert_new_alias_helper(total_aliases: &mut Aliases, container_aliases: &mut IndexSet<ContainerAlias>, alias: RcAlias, container_name: RcContainerName, ttl: Ttl) {
+		let is_new_alias = total_aliases.insert(Rc::clone(&alias), container_name);
+		debug_assert!(is_new_alias.is_none(), "The given alias already exists");
 		let is_new_alias = container_aliases.insert(ContainerAlias { name: alias, ttl });
 		debug_assert!(is_new_alias, "The given alias already exists");
 	}
@@ -185,8 +187,8 @@ impl ContainerMapping {
 		for alias_index in aliases_index {
 			let previous_alias = aliases.shift_remove_index(alias_index)
 				.expect("The given index must be valid");
-			let is_removed = self.aliases.remove(&previous_alias.name);
-			debug_assert!(is_removed, "The given alias existed in the self.containers but not in the self.aliases");
+			let previous_container_name = self.aliases.remove(&previous_alias.name);
+			debug_assert!(previous_container_name.is_some(), "The given alias existed in the self.containers but not in the self.aliases");
 		}
 	}
 }
@@ -205,8 +207,8 @@ impl ContainerMapping {
 			let (_container_name, aliases) = self.containers.shift_remove_index(container_name_index)
 				.expect("The given index must be valid");
 			for alias in aliases {
-				let is_removed = self.aliases.remove(&alias.name);
-				debug_assert!(is_removed, "The given alias existed in the self.containers but not in the self.aliases");
+				let previous_container_name = self.aliases.remove(&alias.name);
+				debug_assert!(previous_container_name.is_some(), "The given alias existed in the self.containers but not in the self.aliases");
 			}
 		}
 	}
@@ -234,8 +236,8 @@ impl AliasEntry<'_> {
 		self.alias.name.as_ref()
 	}
 
-	pub fn contains_alias<A: ?Sized + Hash + EquivalentHashbrown<Rc<str>>>(&self, alias: &A) -> bool {
-		self.aliases.contains(alias)
+	pub fn get_container_name_for_alias<A: ?Sized + Hash + EquivalentHashbrown<Rc<str>>>(&self, alias: &A) -> Option<&RcContainerName> {
+		self.aliases.get(alias)
 	}
 
 	pub fn get_ttl(&self) -> TtlRef<'_> {
@@ -251,8 +253,9 @@ impl AliasEntry<'_> {
 	}
 
 	pub fn rename(&mut self, new: RcAlias) {
-		self.aliases.remove(&self.alias.name);
+		let container_name = self.aliases.remove(&self.alias.name)
+			.expect("Can't rename an alias that doesn't exists");
 		self.alias.name = new;
-		self.aliases.insert(Rc::clone(&self.alias.name));
+		self.aliases.insert(Rc::clone(&self.alias.name), container_name);
 	}
 }
