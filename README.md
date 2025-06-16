@@ -45,7 +45,7 @@ instead of going over all of them each time running the config command.
   * [ ] Dates (TTLs) currently read while ignoring the time zone, maybe can be fixed with [dateparser](https://crates.io/crates/dateparser)/[parse_datetime](https://crates.io/crates/parse_datetime).
   * [x] Need to fix exec `s d x -c "echo hello"` not splitting the input string.
   * [ ] Not showing the container name during the error: `Err(format!("The alias {alias:?} already exists"))`.
-  * [ ] When prompting to add TTL from docker commands, the options for "add TTL" should be the last one.
+  * [x] When prompting to add TTL from docker commands, the options for "add TTL" should be the last one.
   * [ ] If the user doesn't have permissions to run docker, he gets a bad error message, should replace it with: "Run: `sudo usermod -aG docker $USER` and restart you terminal to add your use to user group that able to run docker commands, to make sure it works run `groups` and see that there is `docker` in the output".
 
 #### License

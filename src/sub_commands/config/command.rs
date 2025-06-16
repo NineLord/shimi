@@ -631,6 +631,11 @@ impl <T: Theme> Wizard<'_, T> {
 	}
 }
 
+struct Menu17SelectedContainer {
+	selected_container: Rc<str>,
+	has_container_to_alias_changed: bool,
+}
+
 impl <T: Theme> Wizard<'_, T> {
 	/// # Errors
 	/// * Failed to get the path to the config file.
@@ -640,15 +645,17 @@ impl <T: Theme> Wizard<'_, T> {
 	pub fn select_container_and_add_aliases(mut self, containers: HashSet<String>) -> Result<String> {
 		let mut container_to_alias = self.get_reverse_orch_aliases();
 
-		let result = self.menu_17_add_alias_or_select_container(&mut container_to_alias, containers.into_iter().map(Rc::from).collect(), Selection::default())?;
+		let Menu17SelectedContainer { selected_container, has_container_to_alias_changed } = self.menu_17_add_alias_or_select_container(&mut container_to_alias, containers.into_iter().map(Rc::from).collect(), Selection::default())?;
 		
-		self.set_restore_orch_aliases(container_to_alias);
-		FileHandler::save(&self.config, self.global_options.is_fail_to_parse_config, self.global_options.is_verbose)?;
+		if has_container_to_alias_changed {
+			self.set_restore_orch_aliases(container_to_alias);
+			FileHandler::save(&self.config, self.global_options.is_fail_to_parse_config, self.global_options.is_verbose)?;
+		}
 		
-		Ok(String::from(result.as_ref()))
+		Ok(String::from(selected_container.as_ref()))
 	}
 
-	fn menu_17_add_alias_or_select_container(&self, container_to_alias: &mut ContainerMapping, mut containers: Vec<Rc<str>>, mut select: Selection) -> Result<Rc<str>> {
+	fn menu_17_add_alias_or_select_container(&self, container_to_alias: &mut ContainerMapping, mut containers: Vec<Rc<str>>, mut select: Selection) -> Result<Menu17SelectedContainer> {
 		#[derive(EnumString, FromRepr, VariantNames)]
 		#[repr(u8)]
 		enum Prefix {
@@ -656,21 +663,24 @@ impl <T: Theme> Wizard<'_, T> {
 			AddAlias,
 		}
 
+		let mut has_container_to_alias_changed = false;
 		loop {
 			let options = Options::with_capacity(Prefix::VARIANTS.len() + containers.len())
-					.insert_str_refs(Prefix::VARIANTS)
 					.insert_rc_strings(&containers)
+					.insert_str_refs(Prefix::VARIANTS)
 					.set_selection(&select);
 
 			let selected = self.prompter.fuzzy_select("Add alias or choose container", &options)?;
 			match selected {
 				Selection { vec_index: 0, options_index } => {
-					match from_repr!(Prefix, options_index) {
-						Prefix::AddAlias => { self.menu_18_add_aliases(container_to_alias, &containers, SelectionReturn::default())?; },
-					}
+					return Ok(Menu17SelectedContainer { selected_container: containers.swap_remove(options_index), has_container_to_alias_changed });
 				},
 				Selection { vec_index: 1, options_index } => {
-					return Ok(containers.swap_remove(options_index));
+					match from_repr!(Prefix, options_index) {
+						Prefix::AddAlias => {
+							has_container_to_alias_changed |= self.menu_18_add_aliases(container_to_alias, &containers, SelectionReturn::default())?;
+						},
+					}
 				},
 				Selection { vec_index: _, options_index: _ } => unreachable!("options has only 2 elements"),
 			}
@@ -678,7 +688,10 @@ impl <T: Theme> Wizard<'_, T> {
 		}
 	}
 
-	fn menu_18_add_aliases(&self, container_to_alias: &mut ContainerMapping, containers: &[Rc<str>], mut select: SelectionReturn) -> Result<()> {
+	/// # Returns
+	/// If `true`, a container was added.
+	fn menu_18_add_aliases(&self, container_to_alias: &mut ContainerMapping, containers: &[Rc<str>], mut select: SelectionReturn) -> Result<bool> {
+		let mut has_container_was_added = false;
 		loop {
 			let options = Options::with_capacity(containers.len() + 1)
 					.insert_rc_strings(containers)
@@ -689,10 +702,10 @@ impl <T: Theme> Wizard<'_, T> {
 			match selected {
 				SelectionReturn::Selection(Selection { vec_index: 0, options_index }) => {
 					let container_name = Rc::clone(containers.get(options_index).expect("options_index must be valid"));
-					self.menu_16_new_container_new_alias(container_name, container_to_alias, Some("24h"))?;
+					has_container_was_added |= self.menu_16_new_container_new_alias(container_name, container_to_alias, Some("24h"))?;
 				},
 				SelectionReturn::Return => {
-					return Ok(());
+					return Ok(has_container_was_added);
 				},
 				SelectionReturn::Selection(Selection { vec_index: _, options_index: _ }) => unreachable!("options has only 1 element"),
 			}
