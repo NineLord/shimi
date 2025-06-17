@@ -1,6 +1,6 @@
 #![warn(clippy::pedantic, clippy::nursery, clippy::perf, clippy::correctness)]
 // #![allow(unused, dead_code)]
-#![deny(unused_must_use)]
+#![deny(unused_must_use, unused_crate_dependencies)]
 
 //#region lib.rs
 pub mod top_command;
