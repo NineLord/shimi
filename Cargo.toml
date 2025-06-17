@@ -4,6 +4,10 @@ version = "0.0.8"
 edition = "2024"
 authors = ["Shaked F."]
 
+[[bin]]
+name = "s"
+path = "src/main.rs"
+
 [features]
 default = []
 dry_run = []
@@ -32,7 +36,7 @@ log = { version = "0.4.27" } # Logger
 serde = { version = "1.0.219", features = ["derive"] } # Serialize and deserialize data
 strum = { version = "0.27.1", features = ["derive"] } # Enum utilities
 state-shift = { version = "2.1.1" } # Type State Machine
-
+confy = { version = "1.0.0", default-features = false, features = ["ron_conf"] } # Configuration location management
 ron = { version = "0.10.1" } # Ron format
 colored = { version = "3.0.0" } # Color strings for the terminal
 const_format = { version = "0.2.34" } # Compile-time string formatting

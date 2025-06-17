@@ -1,25 +1,30 @@
-use std::{env, ffi::OsString, process, iter};
+use std::{env, ffi::OsString, iter};
 use anstyle::{AnsiColor, Color, Effects, RgbColor, Style};
 use anyhow::Result;
-use clap::{builder::Styles, ArgAction::SetTrue, ArgMatches, CommandFactory, FromArgMatches, Parser, Subcommand};
-use log::{warn, error};
+use clap::{builder::Styles, crate_authors, ArgAction::SetTrue, ArgMatches, CommandFactory, FromArgMatches, Parser, Subcommand};
 use strum::{VariantArray, IntoStaticStr, EnumDiscriminants};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use hashbrown::HashMap;
 use const_format::concatcp;
 use simply_colored::{DIM_YELLOW, RESET, UNDERLINE};
-use crate::{commands::{ExpandedAlias, GetAllExpandedAliases, GetExpandedAliases, GetSubCommandAliases, GetSubCommandsNames, Run}, logger, sub_commands::{config::{self, Config}, git, orchestration}};
+use crate::{
+	commands::{ExpandedAlias, GetAllExpandedAliases, GetExpandedAliases, GetSubCommandAliases, GetSubCommandsNames, Run},
+	logger,
+	sub_commands::{config::{self, Config}, git, orchestration}};
 
+pub const PACKAGE_NAME: &str = env!("CARGO_PKG_NAME");
+pub const BIN_NAME: &str = env!("CARGO_BIN_NAME");
+pub const PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[allow(clippy::needless_raw_string_hashes)]
-const SHIMI_ASCII: &str = r#"
+const LOGO_ASCII: &str = r#"
    _____ __    _           _ 
   / ___// /_  (_)___ ___  (_)
   \__ \/ __ \/ / __ `__ \/ / 
  ___/ / / / / / / / / / / /  
 /____/_/ /_/_/_/ /_/ /_/_/   
 "#;
-const SHIMI_COLORED: &str = concatcp!(DIM_YELLOW, SHIMI_ASCII, RESET);
+const LOGO_COLORED: &str = concatcp!(DIM_YELLOW, LOGO_ASCII, RESET);
 const NOTE_COLORED: &str = concatcp!(UNDERLINE, "Note:", RESET);
 const STYLES: Styles = Styles::styled() // Cargo colors: https://github.com/crate-ci/clap-cargo/blob/fa44ab6d7b756d69b5e2a92364f3a8a02a2fdab7/src/style.rs
 		.usage(AnsiColor::BrightRed.on_default().bold().underline())
@@ -31,19 +36,20 @@ const STYLES: Styles = Styles::styled() // Cargo colors: https://github.com/crat
 		.invalid(AnsiColor::BrightRed.on_default());
 
 #[derive(Parser, Debug)]
-#[command(name = "s", bin_name = "s")]
+#[command(name = PACKAGE_NAME, bin_name = BIN_NAME)]
+#[command(author = crate_authors!(","))]
 #[command(about = "Common shortcuts for developers.")]
-#[command(about = format!("{SHIMI_COLORED}
+#[command(about = format!("{LOGO_COLORED}
 Common shortcuts for developers.
 {NOTE_COLORED} Commands with sub-commands can be written without space between them."))]
-#[command(long_about = format!("{SHIMI_COLORED}
+#[command(long_about = format!("{LOGO_COLORED}
 A Script of common things a developer might need.
 It contains commands that are too inconvenient to type every time,
 or just hard to remember.
 
 {NOTE_COLORED} Commands with sub-commands can be written without space between them.
-For example: s docker logs ...
-Is the same as: s dockerlogs ..."))]
+For example: {BIN_NAME} docker logs ...
+Is the same as: {BIN_NAME} dockerlogs ..."))]
 #[command(styles=STYLES)]
 #[command(version)]
 pub struct TopCommand {
@@ -65,7 +71,6 @@ The environment variable has higher priority to this flag."
 #[derive(Debug)]
 pub struct GlobalOptions {
 	pub is_verbose: bool,
-	pub version: String,
 	pub config: Config,
 	pub is_fail_to_parse_config: bool,
 }
@@ -83,43 +88,26 @@ lazy_static! {
 }
 
 impl TopCommand {
-	/// # Panics
-	/// If missing version at `Cargo.toml`.
 	#[must_use]
-	pub fn parse() -> (GlobalOptions, SubCommands) {
-		let (version, top_command) = Self::parse_version();
+	pub fn into_split() -> (GlobalOptions, SubCommands) {
+		let top_command = Self::parse_with_expand_matches();
 		logger::init(top_command.is_verbose);
-		let Some(version) = version else {
-			error!("Shimi script missing current version number");
-			process::exit(1);
-		};
 
-		let (config, is_fail_to_parse_config) = match config::FileHandler::read(top_command.is_verbose) {
-			Ok(Some(config)) => (config, false),
-			Err(_) => (Config::default(version.clone()), false),
-			Ok(None) => {
-				warn!("Failed to parse previous config file.
-could it be from previous versions of the tool? (Current version: {version:?})
-Continuing with default config."); // No backward support as of yet.
-				(Config::default(version.clone()), true)
-			},
-		};
+		let config::ReadResult { config, is_fail_to_parse_config } = config::FileHandler::read(top_command.is_verbose);
 		(
 			GlobalOptions {
 				is_verbose: top_command.is_verbose,
 				config,
 				is_fail_to_parse_config,
-				version,
 			},
 			top_command.command
 		)
 	}
 
 	/// Modified version of [`clap_builder::derive::Parser::parse()`]
-	/// that also returned the version of the command.
-	fn parse_version() -> (Option<String>, Self) {
+	/// that also expands the `{top_command}{sub_command}` back `{top_command} {sub_command}`.
+	fn parse_with_expand_matches() -> Self {
 		let command = <Self as CommandFactory>::command();
-		let version = command.get_version().map(String::from);
 		let mut matches = Self::get_expanded_matches(command);
         let result = <Self as FromArgMatches>::from_arg_matches_mut(&mut matches)
             .map_err(|error| {
@@ -127,7 +115,7 @@ Continuing with default config."); // No backward support as of yet.
 				error.format(&mut command)
 			});
         match result {
-            Ok(command) => (version, command),
+            Ok(command) => command,
             Err(error) => error.exit(),
         }
 	}

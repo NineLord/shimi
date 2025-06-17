@@ -44,7 +44,6 @@ impl <'cfg> Wizard<'cfg, ColorfulTheme> {
 			prompter: Prompter::default(),
 			global_options,
 			config: Config {
-				version: global_options.version.clone(),
 				orchestration: global_options.config.orchestration.clone(),
 			}
 		}

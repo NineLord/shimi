@@ -45,7 +45,7 @@ pub mod sub_commands {
 		pub use command::{Command, Wizard};
 
 		mod file_handler;
-		pub(crate) use file_handler::FileHandler;
+		pub(crate) use file_handler::{FileHandler, ReadResult};
 
 		mod structure;
 		pub use structure::{Config, OrchestrationType};
@@ -62,7 +62,7 @@ use top_command::{TopCommand, SubCommands};
 use commands::Run;
 
 fn main() {
-	let (global_options, command) = TopCommand::parse();
+	let (global_options, command) = TopCommand::into_split();
 
 	trace!("Input - Command:\n{command:#?}");
 	trace!("Input - Global Options:\n{global_options:#?}");
