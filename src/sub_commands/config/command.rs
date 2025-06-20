@@ -43,9 +43,7 @@ impl <'cfg> Wizard<'cfg, ColorfulTheme> {
 		Self {
 			prompter: Prompter::default(),
 			global_options,
-			config: Config {
-				orchestration: global_options.config.orchestration.clone(),
-			}
+			config: global_options.config.clone(),
 		}
 	}
 }
@@ -94,7 +92,7 @@ impl <T: Theme> Wizard<'_, T> {
 
 		loop {
 			let options = Options::with_capacity(1 + Prefix::VARIANTS.len())
-				.insert_string(format!("Orchestration: {:?}", self.config.orchestration.variant))
+				.insert_string(format!("Orchestration: {:?}", self.config.orchestration().variant))
 				.insert_str_refs(Prefix::VARIANTS)
 				.set_selection(&select);
 			let selected = self.prompter.fuzzy_select("Choose a setting to edit", &options)?;
@@ -124,8 +122,8 @@ impl <T: Theme> Wizard<'_, T> {
 		}
 
 		let mut options = Options::with_capacity(3)
-			.insert_string(add_check_mark!("🐋 Docker-Compose", self.config.orchestration.variant, OrchestrationType::DockerCompose))
-			.insert_string(add_check_mark!("☸️  Kubernetes", self.config.orchestration.variant, OrchestrationType::Kubernetes))
+			.insert_string(add_check_mark!("🐋 Docker-Compose", self.config.orchestration().variant, OrchestrationType::DockerCompose))
+			.insert_string(add_check_mark!("☸️  Kubernetes", self.config.orchestration().variant, OrchestrationType::Kubernetes))
 			.insert_return()
 			.set_selection(select);
 
@@ -133,12 +131,12 @@ impl <T: Theme> Wizard<'_, T> {
 			let selected = self.prompter.select_with_return("Choose orchestration", &options)?;
 			match selected {
 				SelectionReturn::Selection(Selection { vec_index: 0, options_index: _ }) => {
-					self.config.orchestration.variant = OrchestrationType::DockerCompose;
+					self.config.orchestration_mut().variant = OrchestrationType::DockerCompose;
 					break;
 				},
 				SelectionReturn::Selection(Selection { vec_index: 1, options_index: _ }) => {
 					if self.menu_3_set_kub_name_space()? {
-						self.config.orchestration.variant = OrchestrationType::Kubernetes;
+						self.config.orchestration_mut().variant = OrchestrationType::Kubernetes;
 						break;
 					}
 				},
@@ -152,7 +150,7 @@ impl <T: Theme> Wizard<'_, T> {
 	}
 
 	fn menu_3_set_kub_name_space(&mut self) -> Result<bool> {
-		let previous_name_space: Option<&str> = match &self.config.orchestration.kubernetes {
+		let previous_name_space: Option<&str> = match &self.config.orchestration().kubernetes {
 			Some(Kubernetes { name_space }) => Some(name_space.as_ref()),
 			None => None,
 		};
@@ -162,7 +160,7 @@ impl <T: Theme> Wizard<'_, T> {
 		)?;
 		let result = match input {
 			Input::NoneEmpty(name_space) => {
-				self.config.orchestration.kubernetes = Some(Kubernetes { name_space });
+				self.config.orchestration_mut().kubernetes = Some(Kubernetes { name_space });
 				true
 			},
 			Input::Empty => false,
@@ -622,11 +620,11 @@ Example:
 
 impl <T: Theme> Wizard<'_, T> {
 	fn get_reverse_orch_aliases(&self) -> ContainerMapping {
-		ContainerMapping::new(&self.config.orchestration.aliases)
+		ContainerMapping::new(&self.config.orchestration().aliases)
 	}
 
 	fn set_restore_orch_aliases(&mut self, reversed_aliases: ContainerMapping) {
-		self.config.orchestration.aliases = reversed_aliases.restore();
+		self.config.orchestration_mut().aliases = reversed_aliases.restore();
 	}
 }
 

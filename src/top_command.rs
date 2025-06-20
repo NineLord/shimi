@@ -11,11 +11,12 @@ use simply_colored::{DIM_YELLOW, RESET, UNDERLINE};
 use crate::{
 	commands::{ExpandedAlias, GetAllExpandedAliases, GetExpandedAliases, GetSubCommandAliases, GetSubCommandsNames, Run},
 	logger,
-	sub_commands::{config::{self, Config}, git, orchestration}};
+	sub_commands::{config::{self, Config}, git, orchestration},
+	prelude::PACKAGE_NAME,
+};
 
-pub const PACKAGE_NAME: &str = env!("CARGO_PKG_NAME");
-pub const BIN_NAME: &str = env!("CARGO_BIN_NAME");
-pub const PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
+const BIN_NAME: &str = env!("CARGO_BIN_NAME");
+// const PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[allow(clippy::needless_raw_string_hashes)]
 const LOGO_ASCII: &str = r#"
    _____ __    _           _ 

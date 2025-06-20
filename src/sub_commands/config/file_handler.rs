@@ -3,13 +3,13 @@ use anyhow::{Context, Result};
 use log::{warn, info};
 use time::{OffsetDateTime, PrimitiveDateTime};
 use super::structure::Config;
-use crate::top_command::PACKAGE_NAME;
+use crate::prelude::PACKAGE_NAME;
 
 pub struct FileHandler;
 #[cfg(not(feature = "dry_run"))]
-const CONFIG_FILE_NAME: &str = "settings"; // TODO: rename this to settings instead of config
+const CONFIG_FILE_NAME: &str = "configurations";
 #[cfg(feature = "dry_run")]
-const CONFIG_FILE_NAME: &str = "settings_dryrun";
+const CONFIG_FILE_NAME: &str = "configurations_dryrun";
 
 pub struct ReadResult {
 	pub config: Config,
@@ -18,7 +18,7 @@ pub struct ReadResult {
 
 // Read & Write
 impl FileHandler {
-	pub(crate) fn read(is_verbose: bool) -> ReadResult {
+	pub fn read(is_verbose: bool) -> ReadResult {
 		let mut is_fail_to_parse_config = false;
 		let mut config: Config = match confy::load(PACKAGE_NAME, CONFIG_FILE_NAME) {
 			Ok(config) => config,
@@ -46,16 +46,26 @@ impl FileHandler {
 		let now = OffsetDateTime::now_local().context("Can't get local time")?;
 		let now = PrimitiveDateTime::new(now.date(), now.time());
 
-		let previous_len = config.orchestration.aliases.len();
-		config.orchestration.aliases.retain(|_, container_name| {
+		let previous_len = config.orchestration().aliases.len();
+		config.orchestration_mut().aliases.retain(|_, container_name| {
 			container_name.ttl.is_none_or(|ttl| ttl >= now)
 		});
 
-		if previous_len == config.orchestration.aliases.len() {
+		if previous_len == config.orchestration().aliases.len() {
 			return Ok(()); // None of the TTLs were removed.
 		}
 
 		Self::save(config, false, is_verbose)
+	}
+
+	#[cfg(feature = "dry_run")]
+	#[allow(dead_code)]
+	pub fn get_path() -> Result<PathBuf> {
+		Self::get_configuration_file_path()
+	}
+
+	fn get_configuration_file_path() -> Result<PathBuf> {
+		Ok(confy::get_configuration_file_path(PACKAGE_NAME, CONFIG_FILE_NAME)?)
 	}
 
 	/// # Errors
@@ -63,7 +73,7 @@ impl FileHandler {
 	/// * Failed to open the config file with write permissions.
 	/// * Failed to serialize the config.
 	pub(super) fn save(config: &Config, is_fail_to_parse_config: bool, is_verbose: bool) -> Result<()> {
-		let config_path = confy::get_configuration_file_path(PACKAGE_NAME, CONFIG_FILE_NAME)?;
+		let config_path = Self::get_configuration_file_path()?;
 
 		if is_fail_to_parse_config {
 			let prev_config_path = Self::backup_prev_config(&config_path)?;

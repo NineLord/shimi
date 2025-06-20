@@ -1,8 +1,10 @@
 #![allow(dead_code)]
+use std::{process::Command, fs};
 use anyhow::{Result, anyhow};
 use regex::Regex;
 use lazy_static::lazy_static;
-use const_format::concatcp;
+use strum::IntoStaticStr;
+use shimi::sub_commands::config::file_handler::{FileHandler, ReadResult};
 
 lazy_static! {
     static ref REGEX_ASCII_ESCAPE_CODES: Regex = {
@@ -10,13 +12,19 @@ lazy_static! {
     };
 }
 
-pub const ARROW_UP: &str = "\x1B[A";
-pub const ARROW_DOWN: &str = "\x1B[B";
-pub const ARROW_RIGHT: &str = "\x1B[C";
-pub const ARROW_LEFT: &str = "\x1B[D";
-
-pub const ENTER_C: char = '\n';
-pub const ENTER: &str = concatcp!(ENTER_C);
+#[derive(IntoStaticStr)]
+pub enum Keys {
+	#[strum(serialize = "\x1B[A")]
+	ArrowUp,
+	#[strum(serialize = "\x1B[B")]
+	ArrowDown,
+	#[strum(serialize = "\x1B[C")]
+	ArrowRight,
+	#[strum(serialize = "\x1B[D")]
+	ArrowLeft,
+	#[strum(serialize = "\n")]
+	Enter,
+}
 
 pub fn clean_string(input: &str) -> String {
     REGEX_ASCII_ESCAPE_CODES.replace_all(input, "")
@@ -28,9 +36,26 @@ pub fn clean_string(input: &str) -> String {
 }
 
 pub fn get_last_line(input: &str) -> Result<&str> {
-	input.split(ENTER_C)
+	let enter: &str = Keys::Enter.into();
+	input.split(enter)
 		.map(|line| line.trim())
 		.filter(|line| !line.is_empty())
 		.last()
 		.ok_or_else(|| anyhow!("There is no last line"))
+}
+
+pub fn remove_previous_config() -> Result<()> {
+	let path = FileHandler::get_path()?;
+	if path.exists() {
+		fs::remove_file(path)?;
+	}
+	Ok(())
+}
+
+pub fn read_current_config() -> ReadResult {
+	FileHandler::read(false)
+}
+
+pub fn get_command() -> Command {
+	Command::new(env!("CARGO_BIN_EXE_s"))
 }

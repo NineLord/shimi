@@ -1,6 +1,8 @@
 use std::process::Output;
 use anyhow::{anyhow, Result};
 
+pub const PACKAGE_NAME: &str = env!("CARGO_PKG_NAME");
+
 pub trait ExitOk {
 	/// # Returns
 	/// `StdOut` of the command.

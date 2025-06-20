@@ -3,14 +3,26 @@ use serde::{Serialize, Deserialize};
 use strum::{EnumString, FromRepr, VariantNames};
 use time::PrimitiveDateTime;
 use clap::ValueEnum;
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct Config {
-	pub orchestration: Orchestration,
-}
+use getset::{Getters, MutGetters, Setters};
 
 pub type StrAlias = String;
 pub type AliasToContainer = HashMap<StrAlias, ContainerName>;
+
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "version")]
+pub(super) enum VersionChecked {
+	#[serde(rename = "0")]
+	Version0(Config),
+	#[serde(other)]
+	Unsupported,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Getters, MutGetters, Setters)]
+pub struct Config { // No constructor for this class, since it should be make only via deserializing a config file.
+	#[getset(get = "pub", get_mut = "pub", set = "pub")]
+	orchestration: Orchestration,
+}
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Orchestration {

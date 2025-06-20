@@ -18,17 +18,20 @@ mod tests {
 	use super::*;
 	use common::*;
 	use anyhow::Result;
-	use rexpect::spawn;
+	use rexpect::session::spawn_command;
 	use assertables::assert_contains;
-	use const_format::formatcp;
+	use tap::Tap;
 
 	#[test]
 	fn save_config() -> Result<()> {
+		remove_previous_config()?;
+		let command = get_command()
+			.tap_mut(|c| { c.arg("config"); });
 		let output = {
-			let mut process = spawn(formatcp!("{:?} config", env!("CARGO_BIN_EXE_s")), Some(2_000))?;
-			process.send(ARROW_DOWN)?;
-			process.send(ARROW_DOWN)?;
-			process.send(ENTER)?;
+			let mut process = spawn_command(command, Some(2_000))?;
+			process.send(Keys::ArrowDown.into())?;
+			process.send(Keys::ArrowDown.into())?;
+			process.send(Keys::Enter.into())?;
 			process.exp_eof()?
 		};
 		let output = clean_string(&output);

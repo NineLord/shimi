@@ -23,18 +23,18 @@ impl <'cfg> GlobalOrchOptions<'cfg> {
 }
 
 impl GlobalOrchOptions<'_> {
-	pub const fn get_orchestration_type(&self) -> OrchestrationType {
-		match self.orchestration_type {
-			Some(variant) => variant,
-			None => self.global_options.config.orchestration.variant,
-		}
+	pub fn get_orchestration_type(&self) -> OrchestrationType {
+		self.orchestration_type.map_or_else(
+			|| self.global_options.config.orchestration().variant,
+			|variant| variant
+		)
 	}
 }
 
 
 impl <'cfg> GlobalOrchOptions<'cfg> {
 	pub fn get_name_space(&self) -> Result<&String> {
-		match (&self.name_space, &self.global_options.config.orchestration.kubernetes) {
+		match (&self.name_space, &self.global_options.config.orchestration().kubernetes) {
 			(Some(name_space), _) => Ok(name_space),
 			(None, Some(kubernetes)) => Ok(&kubernetes.name_space),
 			(None, None) => Err(anyhow!("Namespace wasn't set in the config nor given via optional argument")),
@@ -166,7 +166,7 @@ impl GlobalOrchOptions<'_> {
 	/// # Params
 	/// * `input` - The name that going to be converted.
 	fn convert_to_alias(&self, input: String) -> String {
-		let alias = self.global_options.config.orchestration.aliases.get(&input);
+		let alias = self.global_options.config.orchestration().aliases.get(&input);
 		trace!("convert_to_alias :: from {input:?} to {alias:?}");
 		alias
 			.map(|container_alias| &container_alias.name)

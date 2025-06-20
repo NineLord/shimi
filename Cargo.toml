@@ -20,6 +20,7 @@ lazy_static = { version = "1.5.0" } # Lazy initialization of static variables
 strum = { version = "0.27.1", features = ["derive"] } # Enum utilities
 state-shift = { version = "2.1.1" } # Type State Machine
 const_format = { version = "0.2.34" } # Compile-time string formatting
+getset = { version = "0.1.6" } # Getters and setters for structs
 #endregion
 
 #region Data Structures
