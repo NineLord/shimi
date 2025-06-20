@@ -13,24 +13,41 @@ const CONFIG_FILE_NAME: &str = "configurations";
 const CONFIG_FILE_NAME: &str = "configurations_dryrun";
 
 //#region BackwardsCompatibleConfig
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "version")]
-enum BackwardsCompatibleConfig {
-	#[serde(rename = "0")]
-	Version0(Config),
-	#[serde(other)]
-	Unsupported,
+macro_rules! gen_backwards_comp_config_enum {
+    (
+        $name:ident,
+		$refname:ident,
+        $( $version_name:ident ( $ty:ty ) => $version_number:literal ),+ $(,)?
+    ) => {
+		// Same idea as: https://stackoverflow.com/questions/70366168/serde-struct-version-check/70380491#70380491
+        #[derive(Debug, Serialize, Deserialize)]
+        #[serde(tag = "version")]
+        enum $name {
+            $(
+                #[serde(rename = $version_number)]
+                $version_name($ty),
+            )+
+            #[serde(other)]
+            Unsupported,
+        }
+
+        #[derive(Debug, Serialize)]
+		#[allow(dead_code)]
+        enum $refname<'a> {
+            $(
+                $version_name(&'a $ty),
+            )+
+            Unsupported,
+        }
+    };
 }
 
-#[derive(Debug, Serialize)]
-#[serde(tag = "version")]
-#[allow(dead_code)]
-enum BackwardsCompatibleConfigRef<'a> {
-	#[serde(rename = "0")]
-	Version0(&'a Config),
-	#[serde(other)]
-	Unsupported,
-}
+// Usage example:
+gen_backwards_comp_config_enum!(
+    BackwardsCompatibleConfig,
+    BackwardsCompatibleConfigRef,
+    Version0(Config) => "0",
+);
 
 impl Default for BackwardsCompatibleConfig {
 	fn default() -> Self {
@@ -122,7 +139,9 @@ impl FileHandler {
 			warn!("Previous config file was backed up due to failure to parse it at: {prev_config_path:?}");
 		}
 
-		confy::store(PACKAGE_NAME, CONFIG_FILE_NAME, BackwardsCompatibleConfigRef::Version0(config))?;
+		let x = BackwardsCompatibleConfigRef::Version0(config);
+
+		confy::store(PACKAGE_NAME, CONFIG_FILE_NAME, x)?;
 
 		if is_verbose {
 			info!("Successfully written the config file to: {config_path:?}");
