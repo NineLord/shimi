@@ -17,6 +17,7 @@ env = { SHIMI_LOG = "trace" }
 args = [
 	"run",
 	"--features", "dry_run",
+	"--no-default-features",
 	"--",
 	"${@}",
 ]
@@ -28,5 +29,6 @@ command = "cargo"
 args = [
 	"run",
 	"--features", "dry_run",
+	"--no-default-features",
 	"--bin", "edit_orch_dry_run",
 ]

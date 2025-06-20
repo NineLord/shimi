@@ -10,8 +10,8 @@ name = "s"
 path = "src/main.rs"
 
 [features]
-default = []
-dry_run = []
+default = ["confy/ron_conf"]
+dry_run = ["confy/yaml_conf"]
 
 [dependencies]
 #region Syntax Utilities
@@ -41,7 +41,7 @@ humantime = "2.2.0" # Human readable time
 
 #region (De)Serialize Configuration
 serde = { version = "1.0.219", features = ["derive"] } # Serialize and deserialize data
-confy = { version = "1.0.0", default-features = false, features = ["ron_conf"] } # Configuration location management
+confy = { version = "1.0.0", default-features = false } # Configuration location management
 #endregion
 
 #region CLI
