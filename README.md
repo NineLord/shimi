@@ -26,9 +26,9 @@ instead of going over all of them each time running the config command.
     * By default `s docker ps` not showing all containers.
     * By default `s docker logs` always follows.
     * By default `s docker logs` shows all the logs (no `tail` turned on).
-  * [ ] Handle config file with `confy` instead of manually: `confy = {version = "*", default-features = false, features = ["ron_conf"]} # Configuration management`.
-  * [ ] consider using [config-rs](https://crates.io/crates/config), to better support the 12-factor.
-  * [ ] Support backward compatibility of the configs using [SuperStruct](https://crates.io/crates/superstruct)/[serde](https://ivanbyte.medium.com/backward-compatible-data-de-serialization-with-serde-flow-in-rust-c87a2e8bc9ea).
+  * [x] Handle config file with `confy` instead of manually: `confy = {version = "*", default-features = false, features = ["ron_conf"]} # Configuration management`.
+  * [x] consider using [config-rs](https://crates.io/crates/config), to better support the 12-factor.
+  * [x] Support backward compatibility of the configs using [SuperStruct](https://crates.io/crates/superstruct)/[serde](https://ivanbyte.medium.com/backward-compatible-data-de-serialization-with-serde-flow-in-rust-c87a2e8bc9ea).
   * [ ] Add to the config, each container can have his own "shell" to be used when doing `docker exec`, to be able to overwrite `/bin/bash` default.
 * __UX related__:
   * [ ] `clap` has feature for auto completions to commands.
