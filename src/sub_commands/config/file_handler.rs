@@ -2,6 +2,7 @@ use std::{time::{SystemTime, UNIX_EPOCH}, fs, path::PathBuf};
 use anyhow::{Context, Result};
 use log::{warn, info};
 use time::{OffsetDateTime, PrimitiveDateTime};
+use serde::{Serialize, Deserialize};
 use super::structure::Config;
 use crate::prelude::PACKAGE_NAME;
 
@@ -10,6 +11,42 @@ pub struct FileHandler;
 const CONFIG_FILE_NAME: &str = "configurations";
 #[cfg(feature = "dry_run")]
 const CONFIG_FILE_NAME: &str = "configurations_dryrun";
+
+//#region BackwardsCompatibleConfig
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "version")]
+enum BackwardsCompatibleConfig {
+	#[serde(rename = "0")]
+	Version0(Config),
+	#[serde(other)]
+	Unsupported,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "version")]
+#[allow(dead_code)]
+enum BackwardsCompatibleConfigRef<'a> {
+	#[serde(rename = "0")]
+	Version0(&'a Config),
+	#[serde(other)]
+	Unsupported,
+}
+
+impl Default for BackwardsCompatibleConfig {
+	fn default() -> Self {
+		Self::Version0(Config::default())
+	}
+}
+
+impl BackwardsCompatibleConfig {
+	pub fn get(self) -> Config {
+		match self {
+			Self::Version0(config) => config,
+			Self::Unsupported => Config::default(),
+		}
+	}
+}
+//#endregion
 
 pub struct ReadResult {
 	pub config: Config,
@@ -20,8 +57,8 @@ pub struct ReadResult {
 impl FileHandler {
 	pub fn read(is_verbose: bool) -> ReadResult {
 		let mut is_fail_to_parse_config = false;
-		let mut config: Config = match confy::load(PACKAGE_NAME, CONFIG_FILE_NAME) {
-			Ok(config) => config,
+		let backward_comp_config: BackwardsCompatibleConfig = match confy::load(PACKAGE_NAME, CONFIG_FILE_NAME) {
+			Ok(backward_comp_config) => backward_comp_config,
 			Err(error) => {
 				if is_verbose {
 					warn!("Failed to read the config, continuing with default config: {error}");
@@ -29,9 +66,10 @@ impl FileHandler {
 					warn!("Failed to read the config, continuing with default config");
 				}
 				is_fail_to_parse_config = true;
-				Config::default()
+				BackwardsCompatibleConfig::default()
 			},
 		};
+		let mut config = backward_comp_config.get();
 		if let Err(error) = Self::remove_out_of_date_ttls(&mut config, is_verbose) {
 			if is_verbose {
 				warn!("Failed remove outdated TTLs from config: {error:?}");
@@ -84,7 +122,7 @@ impl FileHandler {
 			warn!("Previous config file was backed up due to failure to parse it at: {prev_config_path:?}");
 		}
 
-		confy::store(PACKAGE_NAME, CONFIG_FILE_NAME, config)?;
+		confy::store(PACKAGE_NAME, CONFIG_FILE_NAME, BackwardsCompatibleConfigRef::Version0(config))?;
 
 		if is_verbose {
 			info!("Successfully written the config file to: {config_path:?}");
