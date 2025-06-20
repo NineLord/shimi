@@ -60,8 +60,12 @@ impl FileHandler {
 
 	#[cfg(feature = "dry_run")]
 	#[allow(dead_code)]
-	pub fn get_path() -> Result<PathBuf> {
-		Self::get_configuration_file_path()
+	pub fn delete() -> Result<()> {
+		let path = Self::get_configuration_file_path()?;
+		if path.exists() {
+			fs::remove_file(path)?;
+		}
+		Ok(())
 	}
 
 	fn get_configuration_file_path() -> Result<PathBuf> {

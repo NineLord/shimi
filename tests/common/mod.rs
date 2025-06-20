@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use std::{process::Command, fs};
+use std::process::Command;
 use anyhow::{Result, anyhow};
 use regex::Regex;
 use lazy_static::lazy_static;
@@ -45,11 +45,7 @@ pub fn get_last_line(input: &str) -> Result<&str> {
 }
 
 pub fn remove_previous_config() -> Result<()> {
-	let path = FileHandler::get_path()?;
-	if path.exists() {
-		fs::remove_file(path)?;
-	}
-	Ok(())
+	FileHandler::delete()
 }
 
 pub fn read_current_config() -> ReadResult {
