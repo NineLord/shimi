@@ -70,7 +70,12 @@ pub enum IsTryGetMatch {
 	/// If multiple matches are found, will prompt to choose one and optionally add alias/TTL to them.
 	/// # Panics
 	/// * If the given list is empty.
-	Yes(IndexSet<MatchSource>) // TODO: maybe no need to keep the order anymore.
+	Yes(IndexSet<MatchSource>), // TODO: maybe no need to keep the order anymore.
+	/// Will try to find a matching container,
+	/// from currently active containers and
+	/// the orchestration's config files.
+	/// If multiple matches are found, will pick the closest matching.
+	YesButIamFeelingLucky,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
@@ -118,17 +123,26 @@ impl GlobalOrchOptions<'_> {
 			IsExactMatch::No(is_try_get_match) => is_try_get_match,
 		};
 
-		let sources = match is_try_get_match {
-			IsTryGetMatch::No => {
-				let result = self.convert_to_alias(input);
-				trace!("get_container_name :: result={result:?}");
-				return Ok(result);
-			},
-			IsTryGetMatch::Yes(sources) => sources,
+		let result = match is_try_get_match {
+			IsTryGetMatch::No =>
+				self.convert_to_alias(input),
+			IsTryGetMatch::Yes(sources) =>
+				self.get_container_name_from_list_of_sources(&input, sources)?,
+			IsTryGetMatch::YesButIamFeelingLucky => todo!(),
 		};
 
+		trace!("get_container_name :: result={result:?}");
+		Ok(result)
+	}
+}
+
+impl GlobalOrchOptions<'_> {
+	/// # Params
+	/// * `input` - The name of the container, could be an alias or substring of the full container name.
+	/// * `sources` - List of sources to try to compare the `input` to.
+	fn get_container_name_from_list_of_sources(&self, input: &str, sources: IndexSet<MatchSource>) -> Result<String> {
 		let matching_alias = {
-			let alias = self.convert_to_alias(input.clone());
+			let alias = self.convert_to_alias(input.to_string());
 			let result = Self::prepare_for_matching(&alias);
 			trace!("prepare_for_matching :: from {alias:?} to {result:?}");
 			result
@@ -158,7 +172,6 @@ impl GlobalOrchOptions<'_> {
 				.select_container_and_add_aliases(containers)?
 		};
 
-		trace!("get_container_name :: result={result:?}");
 		Ok(result)
 	}
 
