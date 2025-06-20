@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 [features]
 default = ["confy/ron_conf"]
-dry_run = ["confy/yaml_conf", "docker-compose-types"]
+dry_run = ["confy/yaml_conf", "docker-compose-types", "rand", "hex"]
 
 [dependencies]
 #region Syntax Utilities
@@ -62,6 +62,11 @@ log = { version = "0.4.27" } # Logger
 #region Error Handling
 ctrlc = { version = "3.4.7"} # Handles Ctrl+C signal
 anyhow = { version = "1.0.97" } # Error handling
+#endregion
+
+#region For Integration Tests
+rand = { version = "0.9.1", optional = true }
+hex = { version = "0.4.3", optional = true }
 #endregion
 
 # [build-dependencies]
