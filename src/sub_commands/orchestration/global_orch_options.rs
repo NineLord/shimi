@@ -115,20 +115,15 @@ impl GlobalOrchOptions<'_> {
 		// Shaked-TODO: can optimize this to also separate the instance number of the container and analyze it
 		trace!("get_container_name :: Options: {is_exact_match:#?}");
 
-		let is_try_get_match = match is_exact_match {
-			IsExactMatch::Yes => {
-				trace!("get_container_name :: result={input:?}");
-				return Ok(input);
-			},
-			IsExactMatch::No(is_try_get_match) => is_try_get_match,
-		};
-
-		let result = match is_try_get_match {
-			IsTryGetMatch::No =>
+		let result = match is_exact_match {
+			IsExactMatch::Yes =>
+				input,
+			IsExactMatch::No(IsTryGetMatch::No) =>
 				self.convert_to_alias(input),
-			IsTryGetMatch::Yes(sources) =>
+			IsExactMatch::No(IsTryGetMatch::Yes(sources)) =>
 				self.get_container_name_from_list_of_sources(&input, sources)?,
-			IsTryGetMatch::YesButIamFeelingLucky => todo!(),
+			IsExactMatch::No(IsTryGetMatch::YesButIamFeelingLucky) =>
+				todo!(),
 		};
 
 		trace!("get_container_name :: result={result:?}");
