@@ -22,6 +22,16 @@ args = [
 	"${@}",
 ]
 
+[tasks.drycheck]
+# Checks the dry-run mode.
+# Example: `cargo make drycheck`
+command = "cargo"
+args = [
+	"check",
+	"--features", "dry_run",
+	"--no-default-features",
+]
+
 [tasks.editDryRun]
 # Changes the current state for dry-run mode.
 # Example: `cargo make editDryRun`

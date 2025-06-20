@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::{Args, ArgAction::SetTrue};
 use super::{command::RunOrchestration, global_orch_options::GlobalOrchOptions};
 #[cfg(feature = "dry_run")]
-use super::dry_run::CurrentState;
+use super::dry_run::{DockerComposeType, HandleConfig};
 use crate::{utils::RunCommand, sub_commands::config::OrchestrationType, commands::GetSubCommandAliases};
 
 const VISIBLE_ALIAS: &str = "ps";
@@ -88,7 +88,7 @@ impl GlobalOrchOptions<'_> {
 		}?;
 	
 		#[cfg(feature = "dry_run")]
-		let container_names = CurrentState::get_container_names(&output);
+		let container_names = DockerComposeType::get_container_names(&output);
 		#[cfg(not(feature = "dry_run"))]
 		let container_names = std::str::from_utf8(&output.stdout)?
 				.split('\n')
