@@ -40,6 +40,9 @@ pub mod sub_commands {
 		mod up;
 		mod down;
 		mod reset;
+
+		#[cfg(feature = "dry_run")]
+		mod dry_run;
 	}
 	pub mod config {
 		mod command;

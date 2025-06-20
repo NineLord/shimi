@@ -20,3 +20,13 @@ args = [
 	"--",
 	"${@}",
 ]
+
+[tasks.editDryRun]
+# Changes the current state for dry-run mode.
+# Example: `cargo make editDryRun`
+command = "cargo"
+args = [
+	"run",
+	"--features", "dry_run",
+	"--bin", "edit_orch_dry_run",
+]

@@ -6,4 +6,7 @@ pub mod sub_commands {
 		pub mod file_handler;
 		pub mod structure;
 	}
+	pub mod orchestration {
+		pub mod dry_run;
+	}
 }

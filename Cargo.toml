@@ -3,6 +3,7 @@ name = "shimi"
 version = "0.0.8"
 edition = "2024"
 authors = ["Shaked F."]
+default-run = "s"
 
 [[bin]]
 name = "s"

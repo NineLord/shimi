@@ -1,6 +1,8 @@
 use anyhow::Result;
 use clap::{Args, ArgAction::SetTrue};
 use super::{command::RunOrchestration, global_orch_options::GlobalOrchOptions};
+#[cfg(feature = "dry_run")]
+use super::dry_run::CurrentState;
 use crate::{utils::RunCommand, sub_commands::config::OrchestrationType, commands::GetSubCommandAliases};
 
 const VISIBLE_ALIAS: &str = "ps";
@@ -85,27 +87,14 @@ impl GlobalOrchOptions<'_> {
 			},
 		}?;
 	
-		let container_names = if cfg!(feature = "dry_run") {
-			vec![
-				String::from("avatar"),
-				String::from("you_tube_2"),
-				String::from("path-of-exile-1"),
-				String::from("you_tube_1"),
-				String::from("last-epoch"),
-				String::from("you_tube_3"),
-				String::from("path-of-exile-2"),
-				String::from("spongebob"),
-				String::from("facebook-jfdksalfhdka"),
-				String::from("facebook-djrieoruaiea"),
-				String::from("facebook-fjdasklfjsad"),
-			]
-		} else {
-			std::str::from_utf8(&output.stdout)?
+		#[cfg(feature = "dry_run")]
+		let container_names = CurrentState::get_container_names(&output);
+		#[cfg(not(feature = "dry_run"))]
+		let container_names = std::str::from_utf8(&output.stdout)?
 				.split('\n')
 				.filter(|container_name| !container_name.is_empty())
 				.map(String::from)
-				.collect::<Vec<String>>()
-		};
+				.collect::<Vec<String>>();
 		
 		Ok(container_names)
 	}
