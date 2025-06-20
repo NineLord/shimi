@@ -32,11 +32,14 @@ macro_rules! gen_backwards_comp_config_enum {
         }
 
         #[derive(Debug, Serialize)]
+		#[serde(tag = "version")]
 		#[allow(dead_code)]
         enum $refname<'a> {
             $(
+				#[serde(rename = $version_number)]
                 $version_name(&'a $ty),
             )+
+			#[serde(other)]
             Unsupported,
         }
     };
@@ -54,15 +57,6 @@ impl Default for BackwardsCompatibleConfig {
 		Self::Version0(Config::default())
 	}
 }
-
-impl BackwardsCompatibleConfig {
-	pub fn get(self) -> Config {
-		match self {
-			Self::Version0(config) => config,
-			Self::Unsupported => Config::default(),
-		}
-	}
-}
 //#endregion
 
 pub struct ReadResult {
@@ -73,20 +67,21 @@ pub struct ReadResult {
 // Read & Write
 impl FileHandler {
 	pub fn read(is_verbose: bool) -> ReadResult {
-		let mut is_fail_to_parse_config = false;
-		let backward_comp_config: BackwardsCompatibleConfig = match confy::load(PACKAGE_NAME, CONFIG_FILE_NAME) {
-			Ok(backward_comp_config) => backward_comp_config,
-			Err(error) => {
+		let (mut config, is_fail_to_parse_config) = match confy::load(PACKAGE_NAME, CONFIG_FILE_NAME) {
+			Ok(BackwardsCompatibleConfig::Version0(config)) => (config, false),
+			Ok(BackwardsCompatibleConfig::Unsupported) => {
+				warn!("Are you using config from future version of this tool? continuing with default config");
+				(Config::default(), true)
+			}
+			Err(error) => { // Error happens only if a file already exists AND failed to parse it
 				if is_verbose {
 					warn!("Failed to read the config, continuing with default config: {error}");
 				} else {
 					warn!("Failed to read the config, continuing with default config");
 				}
-				is_fail_to_parse_config = true;
-				BackwardsCompatibleConfig::default()
-			},
+				(Config::default(), true)
+			}
 		};
-		let mut config = backward_comp_config.get();
 		if let Err(error) = Self::remove_out_of_date_ttls(&mut config, is_verbose) {
 			if is_verbose {
 				warn!("Failed remove outdated TTLs from config: {error:?}");

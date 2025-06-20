@@ -4,7 +4,8 @@ use anyhow::{Result, anyhow};
 use regex::Regex;
 use lazy_static::lazy_static;
 use strum::IntoStaticStr;
-use shimi::sub_commands::config::file_handler::{FileHandler, ReadResult};
+use shimi::sub_commands::config::file_handler::FileHandler;
+pub use shimi::sub_commands::config::file_handler::ReadResult;
 
 lazy_static! {
     static ref REGEX_ASCII_ESCAPE_CODES: Regex = {
