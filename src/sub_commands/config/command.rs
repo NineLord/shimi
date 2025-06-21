@@ -10,7 +10,7 @@ use strum::{EnumString, FromRepr, VariantNames};
 use super::{
 	edit_structure::{AliasEntry, ContainerMapping, RcAlias, RcContainerName, Ttl},
 	file_handler::FileHandler,
-	structure::{Config, Kubernetes, OrchestrationType},
+	structure::{Config, Kubernetes, DockerCompose, OrchestrationType},
 };
 use crate::{
 	commands::{GetSubCommandAliases, GetSubCommandsNames, Run},
@@ -131,6 +131,7 @@ impl <T: Theme> Wizard<'_, T> {
 			let selected = self.prompter.select_with_return("Choose orchestration", &options)?;
 			match selected {
 				SelectionReturn::Selection(Selection { vec_index: 0, options_index: _ }) => {
+					self.menu_19_set_docker_compose_project_name()?;
 					self.config.orchestration_mut().variant = OrchestrationType::DockerCompose;
 					break;
 				},
@@ -144,6 +145,25 @@ impl <T: Theme> Wizard<'_, T> {
 				SelectionReturn::Selection(Selection { vec_index: _, options_index: _ }) => unreachable!("There are only two options currently"),
 			}
 			options = options.re_set_selection(&selected);
+		}
+
+		Ok(())
+	}
+
+	fn menu_19_set_docker_compose_project_name(&mut self) -> Result<()> {
+		let previous_project_name: Option<&str> = match &self.config.orchestration().docker_compose {
+			Some(DockerCompose { project_name }) => Some(project_name.as_ref()),
+			None => None,
+		};
+		let input = self.prompter.input(
+			"Choose project name (leave empty to let Docker Compose to decided it)",
+			previous_project_name
+		)?;
+		match input {
+			Input::NoneEmpty(project_name) =>
+				self.config.orchestration_mut().docker_compose = Some(DockerCompose { project_name }),
+			Input::Empty =>
+				self.config.orchestration_mut().docker_compose = None,
 		}
 
 		Ok(())

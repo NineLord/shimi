@@ -17,6 +17,7 @@ pub struct Config { // No constructor for this class, since it should be make on
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Orchestration {
 	pub variant: OrchestrationType,
+	pub docker_compose: Option<DockerCompose>,
 	pub kubernetes: Option<Kubernetes>,
 	pub aliases: AliasToContainer,
 }
@@ -39,6 +40,11 @@ impl Default for OrchestrationType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Kubernetes {
 	pub name_space: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DockerCompose {
+	pub project_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

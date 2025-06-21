@@ -13,6 +13,11 @@ The numbers in the brackets represent to which menu should the user continue to.
 * ☸️ Kubernetes [3]
 * ↩ Return to previous menu [1]
 
+## (`Input`[19]) Choose project name (leave empty to let Docker Compose to decided it)
+Shows previously saved project name.
+* Empty [1]
+* None-Empty after Trim [1]
+
 ## (`Input`[3]) Choose name space (leave empty to *not* select Kubernetes)
 Shows previously saved name space.
 * Empty [2]
